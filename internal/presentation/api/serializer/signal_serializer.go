@@ -43,6 +43,10 @@ func ToSignalResponseWithOutcome(signal *entity.Signal, outcome *entity.SignalOu
 		resp.FinalPnlPct = &finalPnl
 		resp.Outcome = &outcome.Outcome
 		resp.TotalTrackingHours = &outcome.TotalTrackingHours
+
+		// Add closed time
+		closedAt := outcome.ClosedAt.Format("2006-01-02T15:04:05Z")
+		resp.ClosedAt = &closedAt
 	}
 
 	return resp

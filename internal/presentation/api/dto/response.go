@@ -24,45 +24,46 @@ type SignalResponse struct {
 	UpdatedAt          string  `json:"updated_at"`
 
 	// Final outcome (only for CLOSED signals)
-	FinalPnlPct        *string `json:"final_pnl_pct,omitempty"`         // 最终盈亏百分比
-	Outcome            *string `json:"outcome,omitempty"`                // PROFIT, LOSS, NEUTRAL
-	TotalTrackingHours *int    `json:"total_tracking_hours,omitempty"`  // 总追踪小时数
+	FinalPnlPct        *string `json:"final_pnl_pct,omitempty"`        // 最终盈亏百分比
+	Outcome            *string `json:"outcome,omitempty"`              // PROFIT, LOSS, NEUTRAL
+	TotalTrackingHours *int    `json:"total_tracking_hours,omitempty"` // 总追踪小时数
+	ClosedAt           *string `json:"closed_at,omitempty"`            // 关闭时间（仅已关闭信号）
 }
 
 // SignalTrackingResponse represents signal tracking data
 type SignalTrackingResponse struct {
-	ID                  int64   `json:"id"`
-	SignalID            string  `json:"signal_id"`
-	TrackedAt           string  `json:"tracked_at"`
-	CurrentPrice        string  `json:"current_price"`
-	PriceChangePct      string  `json:"price_change_pct"`
-	HighestPrice        *string `json:"highest_price,omitempty"`
-	LowestPrice         *string `json:"lowest_price,omitempty"`
-	HighestChangePct    *string `json:"highest_change_pct,omitempty"`
-	LowestChangePct     *string `json:"lowest_change_pct,omitempty"`
-	HoursTracked        int     `json:"hours_tracked"`
-	IsProfitTargetHit   bool    `json:"is_profit_target_hit"`
-	IsStopLossHit       bool    `json:"is_stop_loss_hit"`
+	ID                int64   `json:"id"`
+	SignalID          string  `json:"signal_id"`
+	TrackedAt         string  `json:"tracked_at"`
+	CurrentPrice      string  `json:"current_price"`
+	PriceChangePct    string  `json:"price_change_pct"`
+	HighestPrice      *string `json:"highest_price,omitempty"`
+	LowestPrice       *string `json:"lowest_price,omitempty"`
+	HighestChangePct  *string `json:"highest_change_pct,omitempty"`
+	LowestChangePct   *string `json:"lowest_change_pct,omitempty"`
+	HoursTracked      int     `json:"hours_tracked"`
+	IsProfitTargetHit bool    `json:"is_profit_target_hit"`
+	IsStopLossHit     bool    `json:"is_stop_loss_hit"`
 }
 
 // SignalKlineTrackingResponse represents K-line tracking data
 type SignalKlineTrackingResponse struct {
-	ID              int64   `json:"id"`
-	SignalID        string  `json:"signal_id"`
-	KlineOpenTime   string  `json:"kline_open_time"`
-	KlineCloseTime  string  `json:"kline_close_time"`
-	OpenPrice       string  `json:"open_price"`
-	HighPrice       string  `json:"high_price"`
-	LowPrice        string  `json:"low_price"`
-	ClosePrice      string  `json:"close_price"`
-	Volume          string  `json:"volume"`
-	OpenChangePct   string  `json:"open_change_pct"`
-	HighChangePct   string  `json:"high_change_pct"`
-	LowChangePct    string  `json:"low_change_pct"`
-	CloseChangePct  string  `json:"close_change_pct"`
-	HourlyReturnPct *string `json:"hourly_return_pct,omitempty"`
-	IsProfitableAtHigh  bool `json:"is_profitable_at_high"`
-	IsProfitableAtClose bool `json:"is_profitable_at_close"`
+	ID                  int64   `json:"id"`
+	SignalID            string  `json:"signal_id"`
+	KlineOpenTime       string  `json:"kline_open_time"`
+	KlineCloseTime      string  `json:"kline_close_time"`
+	OpenPrice           string  `json:"open_price"`
+	HighPrice           string  `json:"high_price"`
+	LowPrice            string  `json:"low_price"`
+	ClosePrice          string  `json:"close_price"`
+	Volume              string  `json:"volume"`
+	OpenChangePct       string  `json:"open_change_pct"`
+	HighChangePct       string  `json:"high_change_pct"`
+	LowChangePct        string  `json:"low_change_pct"`
+	CloseChangePct      string  `json:"close_change_pct"`
+	HourlyReturnPct     *string `json:"hourly_return_pct,omitempty"`
+	IsProfitableAtHigh  bool    `json:"is_profitable_at_high"`
+	IsProfitableAtClose bool    `json:"is_profitable_at_close"`
 }
 
 // StatisticsResponse represents strategy statistics
@@ -97,11 +98,11 @@ type StatisticsResponse struct {
 	ProfitFactor *string `json:"profit_factor,omitempty"`
 
 	// K-line metrics
-	KlineTheoreticalWinRate    *string `json:"kline_theoretical_win_rate,omitempty"`
-	KlineCloseWinRate          *string `json:"kline_close_win_rate,omitempty"`
-	TotalKlineHours            int     `json:"total_kline_hours"`
-	ProfitableKlineHoursHigh   int     `json:"profitable_kline_hours_high"`
-	ProfitableKlineHoursClose  int     `json:"profitable_kline_hours_close"`
+	KlineTheoreticalWinRate   *string `json:"kline_theoretical_win_rate,omitempty"`
+	KlineCloseWinRate         *string `json:"kline_close_win_rate,omitempty"`
+	TotalKlineHours           int     `json:"total_kline_hours"`
+	ProfitableKlineHoursHigh  int     `json:"profitable_kline_hours_high"`
+	ProfitableKlineHoursClose int     `json:"profitable_kline_hours_close"`
 
 	// Hourly return statistics
 	AvgHourlyReturnPct *string `json:"avg_hourly_return_pct,omitempty"`
