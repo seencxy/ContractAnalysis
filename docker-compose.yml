@@ -87,6 +87,7 @@ services:
     ports:
       - "${METRICS_PORT:-9090}:9090"
       - "18080:8080"
+      - "18081:8081"
     networks:
       - futures-network
     # 注意: scratch 镜像不支持 shell，无法使用传统健康检查
