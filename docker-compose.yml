@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: futures-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-futures_analysis}
+      MYSQL_USER: ${MYSQL_USER:-futures}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-futures123}
+      TZ: ${TZ:-UTC}
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/migrations:/docker-entrypoint-initdb.d:ro
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - futures-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: futures-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-Quantweb3}
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-Quantweb3}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - futures-network
+
+  # Futures Analysis Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: futures-analysis:latest
+    container_name: futures-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Timezone
+      TZ: ${TZ:-UTC}
+      
+      # Database - MySQL (覆盖 config.docker.yaml 中的默认值)
+      CA_DATABASE_MYSQL_HOST: mysql
+      CA_DATABASE_MYSQL_PORT: 3306
+      CA_DATABASE_MYSQL_DATABASE: ${MYSQL_DATABASE:-futures_analysis}
+      CA_DATABASE_MYSQL_USERNAME: ${MYSQL_USER:-futures}
+      CA_DATABASE_MYSQL_PASSWORD: ${MYSQL_PASSWORD:-futures123}
+      
+      # Database - Redis
+      CA_DATABASE_REDIS_HOST: redis
+      CA_DATABASE_REDIS_PORT: 6379
+      CA_DATABASE_REDIS_PASSWORD: ${REDIS_PASSWORD:-Quantweb3}
+      
+      # Binance API (Optional)
+      CA_BINANCE_API_KEY: ${CA_BINANCE_API_KEY:-}
+      CA_BINANCE_API_SECRET: ${CA_BINANCE_API_SECRET:-}
+      
+      # Telegram Notification (Optional)
+      CA_NOTIFICATIONS_TELEGRAM_BOT_TOKEN: ${CA_NOTIFICATIONS_TELEGRAM_BOT_TOKEN:-}
+      CA_NOTIFICATIONS_TELEGRAM_CHAT_IDS: ${CA_NOTIFICATIONS_TELEGRAM_CHAT_IDS:-}
+    ports:
+      - "${METRICS_PORT:-9090}:9090"
+      - "18080:8080"
+    networks:
+      - futures-network
+    # 注意: scratch 镜像不支持 shell，无法使用传统健康检查
+    # 依赖 MySQL 和 Redis 的健康检查来确保服务就绪
+
+volumes:
+  mysql_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  futures-network:
+    driver: bridge
