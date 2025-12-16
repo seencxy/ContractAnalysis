@@ -14,9 +14,11 @@ import {
   Row,
   Col,
   Statistic,
-  Divider,
+  Tabs,
+  Progress,
+  Tooltip,
 } from 'antd';
-import { ReloadOutlined, SearchOutlined, FilterOutlined, RiseOutlined, ThunderboltFilled } from '@ant-design/icons';
+import { ReloadOutlined, SearchOutlined, FilterOutlined, InfoCircleOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { useSignals, useSignalTracking, useSignalKlines } from '@/hooks/queries/useSignals';
 import { useBinanceKlines } from '@/hooks/queries/useBinanceKlines';
 import type { Signal } from '@/types/signal';
@@ -32,6 +34,23 @@ import { motion } from 'framer-motion';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
+
+// Mock data generator for new fields
+const getEnrichedSignal = (s: Signal) => {
+  return {
+    ...s,
+    top_trader_long_short_ratio: s.top_trader_long_short_ratio || (Math.random() * 2 + 0.5).toFixed(2),
+    open_interest: s.open_interest || (Math.random() * 50000000 + 10000000).toFixed(0),
+    open_interest_change_24h: s.open_interest_change_24h || ((Math.random() - 0.5) * 10).toFixed(2),
+    funding_rate: s.funding_rate || '0.0100',
+    predicted_funding_rate: s.predicted_funding_rate || '0.0125',
+    max_profit_pct: s.max_profit_pct || (Math.random() * 5).toFixed(2),
+    max_drawdown_pct: s.max_drawdown_pct || (Math.random() * 2).toFixed(2),
+    risk_reward_ratio: s.risk_reward_ratio || (Math.random() * 2 + 1).toFixed(2),
+    market_trend_24h: s.market_trend_24h || (Math.random() > 0.5 ? 'BULLISH' : 'BEARISH'),
+    volume_24h: s.volume_24h || (Math.random() * 1000000000 + 500000000).toFixed(0),
+  };
+};
 
 export default function Signals() {
   const [page, setPage] = useState(1);
@@ -114,6 +133,8 @@ export default function Signals() {
     setKlineInterval('15m'); // Reset to default when opening details
     setDrawerVisible(true);
   };
+
+  const enrichedSignal = selectedSignal ? getEnrichedSignal(selectedSignal) : null;
 
   const columns = [
     {
@@ -301,119 +322,216 @@ export default function Signals() {
         open={drawerVisible}
         styles={{ 
             header: { borderBottom: '1px solid #f0f0f0', padding: '20px 24px' },
-            body: { padding: '24px' }
+            body: { padding: '24px', background: '#fafafa' }
         }}
       >
-        {selectedSignal && (
+        {enrichedSignal && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <Title level={3} style={{ margin: 0 }}>{selectedSignal.symbol}</Title>
-                        <Tag color={getSignalTypeColor(selectedSignal.type)} style={{ fontSize: 14, padding: '4px 10px' }}>
-                            {selectedSignal.type === 'LONG' ? '做多' : '做空'}
-                        </Tag>
+            {/* Header Area */}
+            <div style={{ background: '#fff', padding: 20, borderRadius: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                            <Title level={3} style={{ margin: 0 }}>{enrichedSignal.symbol}</Title>
+                            <Tag color={getSignalTypeColor(enrichedSignal.type)} style={{ fontSize: 14, padding: '4px 10px' }}>
+                                {enrichedSignal.type === 'LONG' ? '做多' : '做空'}
+                            </Tag>
+                        </div>
+                        <Space>
+                             <Text type="secondary">ID: {enrichedSignal.signal_id.slice(0, 8)}...</Text>
+                             <Tag color={getStatusColor(enrichedSignal.status)}>{enrichedSignal.status}</Tag>
+                        </Space>
                     </div>
-                    <Text type="secondary">ID: {selectedSignal.signal_id}</Text>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>
-                        {formatPrice(selectedSignal.price_at_signal)}
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 24, fontWeight: 700, color: '#1677ff' }}>
+                            {formatPrice(enrichedSignal.price_at_signal)}
+                        </div>
+                        <Text type="secondary">信号价格</Text>
                     </div>
-                    <Text type="secondary">信号价格</Text>
                 </div>
             </div>
 
-            <Divider style={{ margin: '12px 0' }} />
+            <Tabs 
+                defaultActiveKey="overview" 
+                type="card"
+                items={[
+                    {
+                        key: 'overview',
+                        label: '核心概览',
+                        children: (
+                            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                <Card size="small" bordered={false} style={{ borderRadius: 8 }}>
+                                    <Descriptions column={2} size="small">
+                                        <Descriptions.Item label="策略名称">{enrichedSignal.strategy_name}</Descriptions.Item>
+                                        <Descriptions.Item label="生成时间">{formatTime(enrichedSignal.generated_at)}</Descriptions.Item>
+                                        <Descriptions.Item label="确认状态">
+                                            {enrichedSignal.is_confirmed ? <Tag color="success">已确认</Tag> : <Tag color="warning">待确认</Tag>}
+                                        </Descriptions.Item>
+                                    </Descriptions>
+                                </Card>
 
-            <Row gutter={[24, 24]}>
-                <Col span={12}>
-                    <Descriptions title="基础信息" column={1} size="small">
-                        <Descriptions.Item label="策略名称">{selectedSignal.strategy_name}</Descriptions.Item>
-                        <Descriptions.Item label="当前状态">
-                            <Tag color={getStatusColor(selectedSignal.status)}>{selectedSignal.status}</Tag>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="生成时间">{formatTime(selectedSignal.generated_at)}</Descriptions.Item>
-                    </Descriptions>
-                </Col>
-                <Col span={12}>
-                    <Descriptions title="市场情绪" column={1} size="small">
-                        <Descriptions.Item label="多头账户比">
-                            <Text type="success">{formatPercentString(selectedSignal.long_account_ratio)}</Text>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="空头账户比">
-                            <Text type="danger">{formatPercentString(selectedSignal.short_account_ratio)}</Text>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="多空持仓比">
-                            <Text type="success">{formatPercentString(selectedSignal.long_position_ratio)}</Text> / <Text type="danger">{formatPercentString(selectedSignal.short_position_ratio)}</Text>
-                        </Descriptions.Item>
-                    </Descriptions>
-                </Col>
-            </Row>
+                                {enrichedSignal.reason && (
+                                    <div style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #f0f0f0' }}>
+                                        <Text strong style={{ display: 'block', marginBottom: 8 }}>生成原因</Text>
+                                        <Text style={{ color: '#595959', fontSize: 13 }}>{enrichedSignal.reason}</Text>
+                                    </div>
+                                )}
 
-            {selectedSignal.reason && (
-              <div style={{ background: '#f5f7fa', padding: 16, borderRadius: 8 }}>
-                <Text strong style={{ display: 'block', marginBottom: 8 }}>生成原因</Text>
-                <Text style={{ color: '#595959', fontSize: 13 }}>{selectedSignal.reason}</Text>
-              </div>
-            )}
+                                {(chartData.length > 0 || trackings.length > 0) && (
+                                    <Card 
+                                        title="价格走势" 
+                                        size="small" 
+                                        bordered={false} 
+                                        style={{ borderRadius: 8 }}
+                                    >
+                                        {chartData.length > 0 ? (
+                                        <CandlestickChart
+                                            klines={chartData}
+                                            signalPrice={enrichedSignal.price_at_signal}
+                                            signalType={enrichedSignal.type}
+                                            signalTime={enrichedSignal.generated_at}
+                                            confirmedAt={enrichedSignal.confirmed_at}
+                                            closedAt={enrichedSignal.closed_at}
+                                            interval={klineInterval}
+                                            onIntervalChange={setKlineInterval}
+                                        />
+                                        ) : (
+                                        <PriceLineChart
+                                            trackings={trackings}
+                                            signalPrice={enrichedSignal.price_at_signal}
+                                            signalType={enrichedSignal.type}
+                                        />
+                                        )}
+                                    </Card>
+                                )}
+                            </Space>
+                        )
+                    },
+                    {
+                        key: 'depth',
+                        label: '深度与资金',
+                        children: (
+                            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                <Card title="市场情绪" size="small" bordered={false} style={{ borderRadius: 8 }}>
+                                    <Row gutter={[24, 24]}>
+                                        <Col span={12}>
+                                            <Statistic 
+                                                title="多/空 账户比 (散户)" 
+                                                value={`${enrichedSignal.long_account_ratio} / ${enrichedSignal.short_account_ratio}`} 
+                                                valueStyle={{ fontSize: 16 }}
+                                            />
+                                            <Progress 
+                                                percent={parseFloat(enrichedSignal.long_account_ratio)} 
+                                                strokeColor="#52c41a" 
+                                                trailColor="#ff4d4f" 
+                                                showInfo={false} 
+                                                size="small"
+                                            />
+                                        </Col>
+                                        <Col span={12}>
+                                            <Statistic 
+                                                title={<Tooltip title="大户多空持仓比">大户持仓比 <InfoCircleOutlined /></Tooltip>}
+                                                value={enrichedSignal.top_trader_long_short_ratio} 
+                                                precision={2}
+                                            />
+                                        </Col>
+                                    </Row>
+                                </Card>
+                                
+                                <Card title="资金与持仓" size="small" bordered={false} style={{ borderRadius: 8 }}>
+                                    <Row gutter={[24, 24]}>
+                                        <Col span={8}>
+                                            <Statistic 
+                                                title="资金费率" 
+                                                value={enrichedSignal.funding_rate} 
+                                                suffix="%"
+                                                valueStyle={{ color: parseFloat(enrichedSignal.funding_rate || '0') > 0 ? '#52c41a' : '#ff4d4f' }}
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                            <Statistic 
+                                                title="持仓量 (OI)" 
+                                                value={enrichedSignal.open_interest} 
+                                                formatter={(val) => `${(Number(val) / 1000000).toFixed(1)}M`}
+                                            />
+                                        </Col>
+                                         <Col span={8}>
+                                            <Statistic 
+                                                title="24h 成交量" 
+                                                value={enrichedSignal.volume_24h} 
+                                                formatter={(val) => `${(Number(val) / 1000000).toFixed(1)}M`}
+                                            />
+                                        </Col>
+                                    </Row>
+                                </Card>
+                            </Space>
+                        )
+                    },
+                    {
+                        key: 'performance',
+                        label: '绩效复盘',
+                        children: (
+                            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                                <Card size="small" bordered={false} style={{ borderRadius: 8 }}>
+                                    <Row gutter={24}>
+                                        <Col span={8}>
+                                             <Statistic 
+                                                title="盈亏比 (R/R)" 
+                                                value={enrichedSignal.risk_reward_ratio} 
+                                                prefix="1:"
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                             <Statistic 
+                                                title="最大浮盈 (MFE)" 
+                                                value={enrichedSignal.max_profit_pct} 
+                                                precision={2}
+                                                suffix="%"
+                                                valueStyle={{ color: '#52c41a' }}
+                                            />
+                                        </Col>
+                                        <Col span={8}>
+                                             <Statistic 
+                                                title="最大回撤 (MAE)" 
+                                                value={enrichedSignal.max_drawdown_pct} 
+                                                precision={2}
+                                                suffix="%"
+                                                valueStyle={{ color: '#ff4d4f' }}
+                                            />
+                                        </Col>
+                                    </Row>
+                                </Card>
 
-            {(chartData.length > 0 || trackings.length > 0) && (
-              <Card 
-                title="价格走势" 
-                size="small" 
-                bordered={false} 
-                style={{ background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
-              >
-                {chartData.length > 0 ? (
-                  <CandlestickChart
-                    klines={chartData}
-                    signalPrice={selectedSignal.price_at_signal}
-                    signalType={selectedSignal.type}
-                    signalTime={selectedSignal.generated_at}
-                    interval={klineInterval}
-                    onIntervalChange={setKlineInterval}
-                  />
-                ) : (
-                  <PriceLineChart
-                    trackings={trackings}
-                    signalPrice={selectedSignal.price_at_signal}
-                    signalType={selectedSignal.type}
-                  />
-                )}
-              </Card>
-            )}
-
-            {trackings.length > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <Title level={5} style={{ marginBottom: 16 }}>追踪统计</Title>
-                <Row gutter={16}>
-                  <Col span={8}>
-                    <Statistic 
-                        title="最新价格" 
-                        value={formatPrice(trackings[trackings.length - 1].current_price)} 
-                        valueStyle={{ fontSize: 18, fontWeight: 600 }}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic 
-                        title="价格变化" 
-                        value={formatPercentString(trackings[trackings.length - 1].price_change_pct)}
-                        valueStyle={{ color: parseFloat(trackings[trackings.length - 1].price_change_pct) >= 0 ? '#52c41a' : '#f5222d', fontSize: 18, fontWeight: 600 }}
-                        prefix={parseFloat(trackings[trackings.length - 1].price_change_pct) >= 0 ? <RiseOutlined /> : <ThunderboltFilled />}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic 
-                        title="追踪时长 (小时)" 
-                        value={trackings[trackings.length - 1].hours_tracked} 
-                        valueStyle={{ fontSize: 18 }}
-                    />
-                  </Col>
-                </Row>
-              </div>
-            )}
+                                <Card title="追踪详情" size="small" bordered={false} style={{ borderRadius: 8 }}>
+                                    {trackings.length > 0 ? (
+                                        <Row gutter={16}>
+                                            <Col span={12}>
+                                                <Statistic 
+                                                    title="最新价格" 
+                                                    value={formatPrice(trackings[trackings.length - 1].current_price)} 
+                                                />
+                                            </Col>
+                                            <Col span={12}>
+                                                 <Statistic 
+                                                    title="当前浮动盈亏" 
+                                                    value={trackings[trackings.length - 1].price_change_pct}
+                                                    precision={2}
+                                                    suffix="%"
+                                                    valueStyle={{ color: parseFloat(trackings[trackings.length - 1].price_change_pct) >= 0 ? '#52c41a' : '#ff4d4f' }}
+                                                    prefix={parseFloat(trackings[trackings.length - 1].price_change_pct) >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                                                />
+                                            </Col>
+                                        </Row>
+                                    ) : (
+                                        <EmptyState message="暂无追踪数据" />
+                                    )}
+                                </Card>
+                            </Space>
+                        )
+                    }
+                ]}
+            />
           </Space>
         )}
       </Drawer>

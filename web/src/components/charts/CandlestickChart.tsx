@@ -10,11 +10,13 @@ interface CandlestickChartProps {
   signalPrice: string;
   signalType?: SignalType;
   signalTime?: string;
+  confirmedAt?: string; // New prop for confirmed time
+  closedAt?: string;    // New prop for closed time
   interval?: string;
   onIntervalChange?: (interval: string) => void;
 }
 
-export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', signalTime, interval = '15m', onIntervalChange }: CandlestickChartProps) {
+export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', signalTime, confirmedAt, closedAt, interval = '15m', onIntervalChange }: CandlestickChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
@@ -82,7 +84,30 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
       }
     }
 
-    const markLineData: any[] = [];
+    let confirmedDateStr = '';
+    if (confirmedAt) {
+      const confirmedTs = dayjs(confirmedAt).valueOf();
+      const closestKline = sortedKlines.reduce((prev, curr) => {
+        return (Math.abs(curr.time - confirmedTs) < Math.abs(prev.time - confirmedTs) ? curr : prev);
+      });
+      if (closestKline) {
+        confirmedDateStr = dayjs(closestKline.time).format('MM-DD HH:mm');
+      }
+    }
+
+    let closedDateStr = '';
+    if (closedAt) {
+      const closedTs = dayjs(closedAt).valueOf();
+      const closestKline = sortedKlines.reduce((prev, curr) => {
+        return (Math.abs(curr.time - closedTs) < Math.abs(prev.time - closedTs) ? curr : prev);
+      });
+      if (closestKline) {
+        closedDateStr = dayjs(closestKline.time).format('MM-DD HH:mm');
+      }
+    }
+
+    type MarkLineDataItem = echarts.SeriesOption['markLine']['data'][number];
+    const markLineData: MarkLineDataItem[] = [];
     
     // Y-Axis MarkLine (Price)
     if (!isNaN(price)) {
@@ -106,7 +131,7 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
         });
     }
 
-    // X-Axis MarkLine (Time)
+    // X-Axis MarkLine (Signal Time)
     if (signalDateStr) {
         markLineData.push({
             xAxis: signalDateStr,
@@ -125,6 +150,48 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
                 color: '#1677ff'
             }
         });
+    }
+
+    // X-Axis MarkLine (Confirmed Time)
+    if (confirmedDateStr) {
+      markLineData.push({
+        xAxis: confirmedDateStr,
+        name: 'Confirmed Time',
+        lineStyle: {
+          color: '#52c41a', // Green for confirmed
+          type: 'dashed',
+          width: 1
+        },
+        label: {
+          formatter: 'Confirmed Time',
+          position: 'middle',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          padding: [4, 8],
+          borderRadius: 4,
+          color: '#52c41a'
+        }
+      });
+    }
+
+    // X-Axis MarkLine (Closed Time)
+    if (closedDateStr) {
+      markLineData.push({
+        xAxis: closedDateStr,
+        name: 'Closed Time',
+        lineStyle: {
+          color: '#f5222d', // Red for closed
+          type: 'dashed',
+          width: 1
+        },
+        label: {
+          formatter: 'Closed Time',
+          position: 'end',
+          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          padding: [4, 8],
+          borderRadius: 4,
+          color: '#f5222d'
+        }
+      });
     }
 
     const option: echarts.EChartsOption = {
@@ -148,7 +215,8 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
         textStyle: {
             color: '#333'
         },
-        formatter: (params: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        formatter: (params: any) => { // Using 'any' due to complex ECharts type definitions
           const klineParams = params[0];
           if (!klineParams || !klineParams.value) return '';
           
@@ -267,7 +335,7 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
         chartInstance.current = null;
       }
     };
-  }, [klines, signalPrice, signalType, signalTime]);
+  }, [klines, signalPrice, signalType, signalTime, confirmedAt, closedAt]);
 
   return (
     <div style={{ position: 'relative' }}>

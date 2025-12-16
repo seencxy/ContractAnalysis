@@ -16,10 +16,32 @@ export interface Signal {
   short_trader_count: number;
   status: SignalStatus;
   is_confirmed: boolean;
-  confirmed_at?: string;
+  confirmed_at: string; // Made mandatory based on typical usage when present
   reason?: string;
   created_at: string;
   updated_at: string;
+  closed_at?: string; // New field
+  final_pnl_pct?: string; // New field
+  outcome?: 'PROFIT' | 'LOSS' | 'BREAKEVEN'; // New field, assuming these outcomes
+  total_tracking_hours?: number; // New field
+
+  // --- Smart Money & Depth ---
+  top_trader_long_short_ratio?: string; // 大户多空持仓比
+  open_interest?: string; // 持仓量
+  open_interest_change_24h?: string; // 持仓量24h变化
+
+  // --- Cost & Sentiment ---
+  funding_rate?: string; // 资金费率
+  predicted_funding_rate?: string; // 预测资金费率
+
+  // --- Risk & Performance ---
+  max_profit_pct?: string; // 最大浮盈 (MFE) - 信号发出后的最优价格
+  max_drawdown_pct?: string; // 最大回撤 (MAE) - 信号发出后的最差价格
+  risk_reward_ratio?: string; // 盈亏比
+
+  // --- Context ---
+  market_trend_24h?: 'BULLISH' | 'BEARISH' | 'SIDEWAYS'; // 24h市场趋势
+  volume_24h?: string; // 24h成交量
 }
 
 export interface SignalTracking {
