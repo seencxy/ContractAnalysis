@@ -38,12 +38,15 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
     }
 
     const dates = sortedKlines.map((k) => dayjs(k.time).format('MM-DD HH:mm'));
+    
+    // [open, close, low, high, volume, sign]
     const data = sortedKlines.map((k) => [
       k.open,
       k.close,
       k.low,
       k.high,
-      k.volume
+      k.volume,
+      k.close > k.open ? 1 : -1
     ]);
 
     const price = parseFloat(signalPrice);
@@ -217,10 +220,15 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         formatter: (params: any) => { // Using 'any' due to complex ECharts type definitions
-          const klineParams = params[0];
+          const klineParams = params.find((p: any) => p.seriesName === 'KLine');
+          const volParams = params.find((p: any) => p.seriesName === 'Volume');
+          
           if (!klineParams || !klineParams.value) return '';
           
-          const [o, c, l, h, v] = klineParams.value.slice(1);
+          const [o, c, l, h] = klineParams.value.slice(1);
+          // volume is at index 5 in the original array, but ECharts passes the full array in .value
+          // Our data structure: [open, close, low, high, volume, sign]
+          const v = volParams ? volParams.value : klineParams.value[5];
           
           const date = klineParams.name;
           return `
@@ -233,59 +241,91 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
               <span style="color: #666;">成交量:</span> <span style="font-weight: bold;">${v}</span>
             </div>
           `;
-        }
+        },
       },
       legend: {
-        data: ['KLine'],
+        data: ['KLine', 'Volume'],
         bottom: 0
       },
-      grid: {
-        left: '5%',
-        right: '5%',
-        bottom: '10%',
-        top: '15%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        boundaryGap: false,
-        axisLine: { onZero: false, lineStyle: { color: '#e0e0e0' } },
-        splitLine: { show: false },
-        axisLabel: {
-            color: '#888',
-            rotate: 30
+      grid: [
+        {
+          left: '5%',
+          right: '5%',
+          height: '60%', // Top 60%
+          top: '10%',
+          containLabel: true
         },
-        min: 'dataMin',
-        max: 'dataMax'
-      },
-      yAxis: {
-        scale: true,
-        splitArea: {
-          show: true,
-          areaStyle: {
-              color: ['rgba(250,250,250,0.3)','rgba(210,210,210,0.3)']
-          }
+        {
+          left: '5%',
+          right: '5%',
+          top: '75%', // Start at 75%
+          height: '15%', // 15% height
+          containLabel: true
+        }
+      ],
+      xAxis: [
+        {
+          type: 'category',
+          data: dates,
+          boundaryGap: false,
+          axisLine: { onZero: false, lineStyle: { color: '#e0e0e0' } },
+          splitLine: { show: false },
+          axisLabel: { show: false }, // Hide labels for top axis
+          min: 'dataMin',
+          max: 'dataMax',
+          gridIndex: 0
         },
-        splitLine: {
-            lineStyle: {
-                color: '#f0f0f0'
+        {
+          type: 'category',
+          data: dates,
+          boundaryGap: false,
+          axisLine: { onZero: false, lineStyle: { color: '#e0e0e0' } },
+          splitLine: { show: false },
+          axisLabel: { color: '#888', rotate: 30 },
+          min: 'dataMin',
+          max: 'dataMax',
+          gridIndex: 1
+        }
+      ],
+      yAxis: [
+        {
+          scale: true,
+          splitArea: {
+            show: true,
+            areaStyle: {
+                color: ['rgba(250,250,250,0.3)','rgba(210,210,210,0.3)']
             }
+          },
+          splitLine: {
+              lineStyle: {
+                  color: '#f0f0f0'
+              }
+          },
+          axisLabel: {
+              color: '#888'
+          },
+          min: minPrice,
+          max: maxPrice,
+          gridIndex: 0
         },
-        axisLabel: {
-            color: '#888'
-        },
-        min: minPrice,
-        max: maxPrice
-      },
+        {
+          scale: true,
+          splitLine: { show: false },
+          axisLabel: { show: false },
+          axisTick: { show: false },
+          gridIndex: 1
+        }
+      ],
       dataZoom: [
         {
           type: 'inside',
+          xAxisIndex: [0, 1],
           start: 0,
           end: 100
         },
         {
           show: true,
+          xAxisIndex: [0, 1],
           type: 'slider',
           height: 20,
           bottom: 10,
@@ -309,8 +349,24 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           markLine: {
             symbol: ['none', 'none'],
             data: markLineData,
-            animation: false // Disable animation for markLines
-          }
+            animation: false 
+          },
+          xAxisIndex: 0,
+          yAxisIndex: 0
+        },
+        {
+          name: 'Volume',
+          type: 'bar',
+          xAxisIndex: 1,
+          yAxisIndex: 1,
+          data: data.map((item) => {
+              return {
+                  value: item[4], // Volume
+                  itemStyle: {
+                      color: item[5] > 0 ? profitColor : lossColor // Use sign to color
+                  }
+              }
+          })
         }
       ]
     };

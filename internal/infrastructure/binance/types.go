@@ -38,8 +38,8 @@ type TopLongShortAccountRatio struct {
 // TopLongShortPositionRatio represents top trader long/short position ratio
 type TopLongShortPositionRatio struct {
 	Symbol         string  `json:"symbol"`
-	LongAccount    float64 `json:"longAccount,string"`    // API returns longAccount, not longPosition
-	ShortAccount   float64 `json:"shortAccount,string"`   // API returns shortAccount, not shortPosition
+	LongAccount    float64 `json:"longAccount,string"`  // API returns longAccount, not longPosition
+	ShortAccount   float64 `json:"shortAccount,string"` // API returns shortAccount, not shortPosition
 	LongShortRatio float64 `json:"longShortRatio,string"`
 	Timestamp      int64   `json:"timestamp"`
 }
@@ -73,6 +73,21 @@ type Ticker24hr struct {
 	Count              int64   `json:"count"`
 }
 
+// OpenInterest represents open interest data
+type OpenInterest struct {
+	Symbol       string  `json:"symbol"`
+	OpenInterest float64 `json:"sumOpenInterest,string"`
+	Value        float64 `json:"sumOpenInterestValue,string"`
+	Timestamp    int64   `json:"timestamp"`
+}
+
+// FundingRate represents funding rate data
+type FundingRate struct {
+	Symbol      string  `json:"symbol"`
+	FundingRate float64 `json:"fundingRate,string"`
+	FundingTime int64   `json:"fundingTime"`
+}
+
 // MarketData represents collected market data for a symbol
 type MarketData struct {
 	Symbol    string
@@ -92,6 +107,12 @@ type MarketData struct {
 	// Price and volume
 	Price     float64
 	Volume24h float64
+
+	// Open Interest
+	OpenInterest float64
+
+	// Funding Rate
+	FundingRate float64
 }
 
 // RateLimitInfo represents rate limit information

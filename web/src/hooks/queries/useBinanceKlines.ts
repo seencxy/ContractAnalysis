@@ -62,6 +62,74 @@ export const fetchBinanceKlines = async (params: BinanceKlineParams): Promise<Kl
   }));
 };
 
+export interface FundingRateData {
+  symbol: string;
+  fundingTime: number;
+  fundingRate: string;
+}
+
+export interface LSRatioData {
+  symbol: string;
+  longShortRatio: string;
+  longAccount: string;
+  shortAccount: string;
+  timestamp: number;
+}
+
+export const fetchBinanceFundingRate = async (params: BinanceKlineParams): Promise<FundingRateData[]> => {
+  const { data } = await binanceClient.get<FundingRateData[]>('/fapi/v1/fundingRate', {
+    params: {
+      symbol: params.symbol.toUpperCase(),
+      startTime: params.startTime,
+      endTime: params.endTime,
+      limit: params.limit || 100,
+    },
+  });
+  return data;
+};
+
+export const fetchBinanceLSRatios = async (params: BinanceKlineParams) => {
+  const commonParams = {
+    symbol: params.symbol.toUpperCase(),
+    period: params.interval, // Binance uses 'period' for LS ratios, usually 5m, 15m, 30m, 1h...
+    startTime: params.startTime,
+    endTime: params.endTime,
+    limit: params.limit || 100,
+  };
+
+  const [topTraderRes, globalRes] = await Promise.all([
+    binanceClient.get<LSRatioData[]>('/futures/data/topLongShortPositionRatio', { params: commonParams }),
+    binanceClient.get<LSRatioData[]>('/futures/data/globalLongShortAccountRatio', { params: commonParams }),
+  ]);
+
+  return {
+    topTrader: topTraderRes.data,
+    global: globalRes.data,
+  };
+};
+
+export function useBinanceFundingRate(
+  params: BinanceKlineParams,
+  options?: Omit<UseQueryOptions<FundingRateData[]>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['binance', 'fundingRate', params],
+    queryFn: () => fetchBinanceFundingRate(params),
+    ...options,
+  });
+}
+
+export function useBinanceLSRatios(
+  params: BinanceKlineParams,
+  options?: Omit<UseQueryOptions<{ topTrader: LSRatioData[], global: LSRatioData[] }>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['binance', 'lsRatios', params],
+    queryFn: () => fetchBinanceLSRatios(params),
+    ...options,
+  });
+}
+
 export function useBinanceKlines(
   params: BinanceKlineParams,
   options?: Omit<UseQueryOptions<KlineData[]>, 'queryKey' | 'queryFn'>

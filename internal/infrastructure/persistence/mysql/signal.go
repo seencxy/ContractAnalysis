@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"ContractAnalysis/internal/domain/entity"
+	"ContractAnalysis/internal/domain/repository" // Added this import
 
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
@@ -34,6 +35,11 @@ type SignalModel struct {
 	Status             string          `gorm:"column:status;size:20;not null;index:idx_symbol_status;index:idx_status_generated"`
 	Reason             string          `gorm:"column:reason;type:text"`
 	ConfigSnapshot     string          `gorm:"column:config_snapshot;type:json"`
+	StopLossPrice      decimal.Decimal `gorm:"column:stop_loss_price;type:decimal(20,8);default:0"`
+	TargetPrice1       decimal.Decimal `gorm:"column:target_price_1;type:decimal(20,8);default:0"`
+	TargetPrice2       decimal.Decimal `gorm:"column:target_price_2;type:decimal(20,8);default:0"`
+	ExitPrice          decimal.Decimal `gorm:"column:exit_price;type:decimal(20,8);default:0"`
+	ExitReason         string          `gorm:"column:exit_reason;size:255;default:''"`
 	CreatedAt          time.Time       `gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt          time.Time       `gorm:"column:updated_at;autoUpdateTime"`
 }
@@ -73,6 +79,11 @@ func (m *SignalModel) ToEntity() (*entity.Signal, error) {
 		Status:             entity.SignalStatus(m.Status),
 		Reason:             m.Reason,
 		ConfigSnapshot:     configSnapshot,
+		StopLossPrice:      m.StopLossPrice,
+		TargetPrice1:       m.TargetPrice1,
+		TargetPrice2:       m.TargetPrice2,
+		ExitPrice:          m.ExitPrice,
+		ExitReason:         m.ExitReason,
 		CreatedAt:          m.CreatedAt,
 		UpdatedAt:          m.UpdatedAt,
 	}, nil
@@ -109,6 +120,11 @@ func (m *SignalModel) FromEntity(entity *entity.Signal) error {
 	m.Status = string(entity.Status)
 	m.Reason = entity.Reason
 	m.ConfigSnapshot = configSnapshotJSON
+	m.StopLossPrice = entity.StopLossPrice
+	m.TargetPrice1 = entity.TargetPrice1
+	m.TargetPrice2 = entity.TargetPrice2
+	m.ExitPrice = entity.ExitPrice
+	m.ExitReason = entity.ExitReason
 
 	return nil
 }
@@ -345,25 +361,30 @@ func (r *SignalRepository) Update(ctx context.Context, signal *entity.Signal) er
 	if err := r.db.WithContext(ctx).Model(&SignalModel{}).
 		Where("id = ?", model.ID).
 		Updates(map[string]interface{}{
-			"signal_id":           model.SignalID,
-			"symbol":              model.Symbol,
-			"signal_type":         model.Type,
-			"strategy_name":       model.StrategyName,
-			"generated_at":        model.GeneratedAt,
-			"price_at_signal":     model.PriceAtSignal,
-			"long_account_ratio":  model.LongAccountRatio,
-			"short_account_ratio": model.ShortAccountRatio,
-			"long_position_ratio": model.LongPositionRatio,
+			"signal_id":            model.SignalID,
+			"symbol":               model.Symbol,
+			"signal_type":          model.Type,
+			"strategy_name":        model.StrategyName,
+			"generated_at":         model.GeneratedAt,
+			"price_at_signal":      model.PriceAtSignal,
+			"long_account_ratio":   model.LongAccountRatio,
+			"short_account_ratio":  model.ShortAccountRatio,
+			"long_position_ratio":  model.LongPositionRatio,
 			"short_position_ratio": model.ShortPositionRatio,
-			"long_trader_count":   model.LongTraderCount,
-			"short_trader_count":  model.ShortTraderCount,
-			"confirmation_start":  model.ConfirmationStart,
-			"confirmation_end":    model.ConfirmationEnd,
-			"is_confirmed":        model.IsConfirmed,
-			"confirmed_at":        model.ConfirmedAt,
-			"status":              model.Status,
-			"reason":              model.Reason,
-			"config_snapshot":     model.ConfigSnapshot,
+			"long_trader_count":    model.LongTraderCount,
+			"short_trader_count":   model.ShortTraderCount,
+			"confirmation_start":   model.ConfirmationStart,
+			"confirmation_end":     model.ConfirmationEnd,
+			"is_confirmed":         model.IsConfirmed,
+			"confirmed_at":         model.ConfirmedAt,
+			"status":               model.Status,
+			"reason":               model.Reason,
+			"config_snapshot":      model.ConfigSnapshot,
+			"stop_loss_price":      model.StopLossPrice,
+			"target_price_1":       model.TargetPrice1,
+			"target_price_2":       model.TargetPrice2,
+			"exit_price":           model.ExitPrice,
+			"exit_reason":          model.ExitReason,
 		}).Error; err != nil {
 		return fmt.Errorf("failed to update signal: %w", err)
 	}
@@ -382,6 +403,53 @@ func (r *SignalRepository) GetByID(ctx context.Context, signalID string) (*entit
 	}
 
 	return model.ToEntity()
+}
+
+// GetSignalsWithFilters retrieves signals based on provided filters and applies pagination
+func (r *SignalRepository) GetSignalsWithFilters(ctx context.Context, filters repository.SignalFilterParams, offset, limit int) ([]*entity.Signal, int, error) {
+	var models []SignalModel
+	db := r.db.WithContext(ctx).Model(&SignalModel{})
+
+	// Apply filters
+	if filters.Status != "" {
+		db = db.Where("status = ?", filters.Status)
+	}
+	if filters.Symbol != "" {
+		db = db.Where("symbol = ?", filters.Symbol)
+	}
+	if filters.Strategy != "" {
+		db = db.Where("strategy_name = ?", filters.Strategy)
+	}
+	if filters.Type != "" {
+		db = db.Where("signal_type = ?", filters.Type)
+	}
+	if filters.StartTime != nil {
+		db = db.Where("generated_at >= ?", *filters.StartTime)
+	}
+	if filters.EndTime != nil {
+		db = db.Where("generated_at <= ?", *filters.EndTime)
+	}
+
+	// Count total records before pagination
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count signals: %w", err)
+	}
+
+	// Apply ordering and pagination
+	if err := db.Order("generated_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&models).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get signals with filters: %w", err)
+	}
+
+	signals, err := r.modelsToEntities(models)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return signals, int(total), nil
 }
 
 // GetBySymbol retrieves signals for a symbol

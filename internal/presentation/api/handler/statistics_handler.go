@@ -67,24 +67,19 @@ func (h *StatisticsHandler) GetStrategies(c *gin.Context) {
 		period = "all"
 	}
 
-	// Get statistics for the period
-	stats, err := h.statisticsRepo.GetByPeriod(ctx, period)
+	// Optional strategy filter
+	var strategyFilter *string
+	if req.StrategyName != "" {
+		strategyFilter = &req.StrategyName
+	}
+
+	// Get statistics for the period, with optional strategy filter
+	stats, err := h.statisticsRepo.GetByPeriodAndStrategy(ctx, period, strategyFilter)
 	if err != nil {
-		h.logger.Error("Failed to get strategy statistics", zap.String("period", period), zap.Error(err))
+		h.logger.Error("Failed to get strategy statistics", zap.String("period", period), zap.Error(err), zap.Stringp("strategy", strategyFilter))
 		apiErr := apierrors.NewDatabaseError("Failed to retrieve statistics")
 		utils.ErrorResponse(c, apiErr)
 		return
-	}
-
-	// Filter by strategy if specified
-	if req.StrategyName != "" {
-		filtered := make([]*repository.StrategyStatistics, 0)
-		for _, stat := range stats {
-			if stat.StrategyName == req.StrategyName {
-				filtered = append(filtered, stat)
-			}
-		}
-		stats = filtered
 	}
 
 	responses := serializer.ToStatisticsListResponse(stats)

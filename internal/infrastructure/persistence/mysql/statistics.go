@@ -293,6 +293,28 @@ func (r *StatisticsRepository) GetByPeriod(ctx context.Context, periodLabel stri
 	return stats, nil
 }
 
+// GetByPeriodAndStrategy retrieves statistics for a period, with optional filtering by strategy
+func (r *StatisticsRepository) GetByPeriodAndStrategy(ctx context.Context, periodLabel string, strategyName *string) ([]*repository.StrategyStatistics, error) {
+	var models []StrategyStatisticsModel
+	query := r.db.WithContext(ctx).
+		Where("period_label = ?", periodLabel)
+
+	if strategyName != nil && *strategyName != "" {
+		query = query.Where("strategy_name = ?", *strategyName)
+	}
+
+	if err := query.Order("strategy_name, calculated_at DESC").Find(&models).Error; err != nil {
+		return nil, fmt.Errorf("failed to get statistics by period and strategy: %w", err)
+	}
+
+	stats := make([]*repository.StrategyStatistics, len(models))
+	for i, model := range models {
+		stats[i] = model.ToEntity()
+	}
+
+	return stats, nil
+}
+
 // GetLatest retrieves the latest statistics for each strategy and period
 func (r *StatisticsRepository) GetLatest(ctx context.Context) ([]*repository.StrategyStatistics, error) {
 	// Get latest statistics grouped by strategy_name, symbol, and period_label

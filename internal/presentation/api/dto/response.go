@@ -4,24 +4,25 @@ import "time"
 
 // SignalResponse represents a signal in API response
 type SignalResponse struct {
-	SignalID           string  `json:"signal_id"`
-	Symbol             string  `json:"symbol"`
-	Type               string  `json:"type"`
-	StrategyName       string  `json:"strategy_name"`
-	GeneratedAt        string  `json:"generated_at"`
-	PriceAtSignal      string  `json:"price_at_signal"`
-	LongAccountRatio   string  `json:"long_account_ratio"`
-	ShortAccountRatio  string  `json:"short_account_ratio"`
-	LongPositionRatio  string  `json:"long_position_ratio"`
-	ShortPositionRatio string  `json:"short_position_ratio"`
-	LongTraderCount    int     `json:"long_trader_count"`
-	ShortTraderCount   int     `json:"short_trader_count"`
-	Status             string  `json:"status"`
-	IsConfirmed        bool    `json:"is_confirmed"`
-	ConfirmedAt        *string `json:"confirmed_at,omitempty"`
-	Reason             string  `json:"reason,omitempty"`
-	CreatedAt          string  `json:"created_at"`
-	UpdatedAt          string  `json:"updated_at"`
+	SignalID           string                 `json:"signal_id"`
+	Symbol             string                 `json:"symbol"`
+	Type               string                 `json:"type"`
+	StrategyName       string                 `json:"strategy_name"`
+	GeneratedAt        string                 `json:"generated_at"`
+	PriceAtSignal      string                 `json:"price_at_signal"`
+	LongAccountRatio   string                 `json:"long_account_ratio"`
+	ShortAccountRatio  string                 `json:"short_account_ratio"`
+	LongPositionRatio  string                 `json:"long_position_ratio"`
+	ShortPositionRatio string                 `json:"short_position_ratio"`
+	LongTraderCount    int                    `json:"long_trader_count"`
+	ShortTraderCount   int                    `json:"short_trader_count"`
+	Status             string                 `json:"status"`
+	IsConfirmed        bool                   `json:"is_confirmed"`
+	ConfirmedAt        *string                `json:"confirmed_at,omitempty"`
+	Reason             string                 `json:"reason,omitempty"`
+	StrategyContext    map[string]interface{} `json:"strategy_context,omitempty"`
+	CreatedAt          string                 `json:"created_at"`
+	UpdatedAt          string                 `json:"updated_at"`
 
 	// Final outcome (only for CLOSED signals)
 	FinalPnlPct        *string `json:"final_pnl_pct,omitempty"`        // 最终盈亏百分比
@@ -162,4 +163,12 @@ type OverviewStatisticsResponse struct {
 	TopPerformingPair   string                    `json:"top_performing_pair,omitempty"`
 	WorstPerformingPair string                    `json:"worst_performing_pair,omitempty"`
 	StatusDistribution  *SignalStatusDistribution `json:"status_distribution,omitempty"`
+}
+
+// StrategyResponse represents a trading strategy
+type StrategyResponse struct {
+	Key         string `json:"key"`
+	Name        string `json:"name"`
+	Enabled     bool   `json:"enabled"`
+	Description string `json:"description"`
 }

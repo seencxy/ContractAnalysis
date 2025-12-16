@@ -23,13 +23,17 @@ func SetupRouter(deps Dependencies, log *logger.Logger, version string) *gin.Eng
 	// Initialize handlers
 	healthHandler := handler.NewHealthHandler(version)
 	signalHandler := handler.NewSignalHandler(deps.SignalRepo, log)
-	statisticsHandler := handler.NewStatisticsHandler(deps.StatisticsRepo, deps.SignalRepo, log)
+	statisticsHandler := handler.NewStatisticsHandler(deps.StatsRepo, deps.SignalRepo, log)
+	strategyHandler := handler.NewStrategyHandler(deps.Strategies)
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
 		// Health check
 		v1.GET("/health", healthHandler.Check)
+
+		// Strategies meta
+		v1.GET("/strategies", strategyHandler.GetStrategies)
 
 		// Signal routes
 		signals := v1.Group("/signals")

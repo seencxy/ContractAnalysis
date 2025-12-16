@@ -82,7 +82,7 @@ func (s *WhaleStrategy) Analyze(ctx context.Context, recentData []*entity.Market
 	signal := entity.NewSignal(
 		latestData.Symbol,
 		signalType,
-		s.Name(),
+		s.Key(),
 		latestData,
 		s.GetConfirmationHours(),
 		reason,

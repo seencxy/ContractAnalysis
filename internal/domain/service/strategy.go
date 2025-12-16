@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"ContractAnalysis/internal/domain/entity"
 )
@@ -10,6 +11,9 @@ import (
 type Strategy interface {
 	// Name returns the strategy name
 	Name() string
+
+	// Key returns a unique, sanitized key for the strategy (e.g., "MinorityStrategy")
+	Key() string
 
 	// IsEnabled returns whether the strategy is enabled
 	IsEnabled() bool
@@ -60,6 +64,11 @@ func NewBaseStrategy(config StrategyConfig) *BaseStrategy {
 // Name returns the strategy name
 func (s *BaseStrategy) Name() string {
 	return s.config.Name
+}
+
+// Key returns a unique, sanitized key for the strategy
+func (s *BaseStrategy) Key() string {
+	return strings.ReplaceAll(s.config.Name, " ", "")
 }
 
 // IsEnabled returns whether the strategy is enabled

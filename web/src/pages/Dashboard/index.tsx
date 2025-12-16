@@ -11,6 +11,8 @@ import { useSignals } from '@/hooks/queries/useSignals';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
 import { SignalStatusPieChart } from '@/components/charts/SignalStatusPieChart';
+import StrategyBadge from '@/components/common/StrategyBadge';
+import { useStrategies } from '@/hooks/queries/useStrategies';
 import { formatPercentString, formatRelativeTime } from '@/utils/format';
 import { getStatusColor, getSignalTypeColor } from '@/utils/colors';
 import { motion } from 'framer-motion';
@@ -85,9 +87,13 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { data: overviewRes, isLoading: overviewLoading } = useOverviewStatistics();
   const { data: recentRes, isLoading: recentLoading } = useSignals({ limit: 10, page: 1 });
+  const { data: strategies, isLoading: strategiesLoading } = useStrategies();
 
   const overview = overviewRes?.data;
   const recentSignals = recentRes?.data?.items || [];
+
+  console.log('Dashboard strategies:', strategies);
+  console.log('Dashboard strategiesLoading:', strategiesLoading);
 
   if (overviewLoading) return <Loading />;
 
@@ -110,7 +116,7 @@ export default function Dashboard() {
       title: '策略',
       dataIndex: 'strategy_name',
       key: 'strategy_name',
-      render: (text: string) => <span style={{ color: '#666' }}>{text}</span>,
+      render: (_: string, record: any) => <StrategyBadge signal={record} />,
     },
     {
       title: '状态',
@@ -185,6 +191,52 @@ export default function Dashboard() {
         </Col>
       </Row>
 
+      <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
+        <Col span={24}>
+            <motion.div variants={itemVariants}>
+                <Card title="运行中的策略" bordered={false} style={{ borderRadius: 12 }}>
+                    {strategiesLoading ? (
+                        <Loading />
+                    ) : (
+                        <Row gutter={[16, 16]}>
+                            {strategies?.map(s => s.enabled && (
+                                                            <Col xs={24} sm={8} key={s.key}>
+                                                                <Card 
+                                                                    size="small" 
+                                                                    bordered={false} // Remove default border
+                                                                    style={{ 
+                                                                        borderRadius: 8, 
+                                                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)', // Subtle shadow
+                                                                        transition: 'all 0.3s',
+                                                                        cursor: 'pointer',
+                                                                    }}
+                                                                    hoverable
+                                                                >
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 80 }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                                            <Typography.Text strong style={{ fontSize: 16 }}>{s.name}</Typography.Text>
+                                                                            <Tag color="success" style={{ marginLeft: 8 }}>运行中</Tag>
+                                                                        </div>
+                                                                        <Typography.Paragraph 
+                                                                            type="secondary" 
+                                                                            style={{ fontSize: 12, margin: 0, lineHeight: '18px' }}
+                                                                            ellipsis={{ rows: 2, expandable: false }}
+                                                                        >
+                                                                            {s.description}
+                                                                        </Typography.Paragraph>
+                                                                    </div>
+                                                                </Card>
+                                                            </Col>                            ))}
+                            {(!strategies || strategies.filter(s => s.enabled).length === 0) && (
+                                <Col span={24}><EmptyState message="暂无运行中的策略" /></Col>
+                            )}
+                        </Row>
+                    )}
+                </Card>
+            </motion.div>
+        </Col>
+      </Row>
+
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={8}>
           <motion.div variants={itemVariants} style={{ height: '100%' }}>
@@ -200,7 +252,7 @@ export default function Dashboard() {
                 <EmptyState message="暂无信号数据" />
               ) : (
                 <div style={{ height: 300 }}>
-                  <SignalStatusPieChart distribution={overview.status_distribution} />
+                  <SignalStatusPieChart distribution={overview.status_distribution as unknown as Record<string, number>} />
                 </div>
               )}
             </Card>

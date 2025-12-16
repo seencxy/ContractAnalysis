@@ -174,7 +174,7 @@ func (t *Tracker) trackSignal(ctx context.Context, signal *entity.Signal) error 
 	// Get strategy config from signal
 	profitTargetPct := decimal.NewFromFloat(5.0) // Default
 	stopLossPct := decimal.NewFromFloat(2.0)     // Default
-	trackingHours := 24                           // Default
+	trackingHours := 24                          // Default
 
 	if signal.ConfigSnapshot != nil {
 		if val, ok := signal.ConfigSnapshot["profit_target_pct"].(float64); ok {
@@ -191,22 +191,69 @@ func (t *Tracker) trackSignal(ctx context.Context, signal *entity.Signal) error 
 	shouldClose := false
 	closeReason := ""
 
-	// Check profit target
-	if priceChangePct.GreaterThanOrEqual(profitTargetPct) {
-		shouldClose = true
-		closeReason = "profit target reached"
+	// --- Enhanced Trade Management Logic ---
+
+	// Check Stop Loss (Priority)
+	// If dynamic SL is set, use it. Otherwise use percentage based.
+	isStopLossHit := false
+	if !signal.StopLossPrice.IsZero() {
+		// For SHORT: Hit if Price >= SL
+		if signal.Type == entity.SignalTypeShort && currentPriceDecimal.GreaterThanOrEqual(signal.StopLossPrice) {
+			isStopLossHit = true
+		}
+		// For LONG: Hit if Price <= SL
+		if signal.Type == entity.SignalTypeLong && currentPriceDecimal.LessThanOrEqual(signal.StopLossPrice) {
+			isStopLossHit = true
+		}
+	} else {
+		// Fallback to percentage SL
+		if priceChangePct.LessThanOrEqual(stopLossPct.Neg()) {
+			isStopLossHit = true
+		}
 	}
 
-	// Check stop loss
-	if priceChangePct.LessThanOrEqual(stopLossPct.Neg()) {
+	if isStopLossHit {
 		shouldClose = true
 		closeReason = "stop loss hit"
+		signal.ExitPrice = currentPriceDecimal
+		signal.ExitReason = "SL"
+	} else {
+		// Check Take Profit 1
+		// TODO: Implement Partial Close logic (requires Order/Position entity)
+		// For now, we just log it or maybe move SL to breakeven?
+
+		// Check Final Take Profit (TP2 or Percentage)
+		isTPHit := false
+		if !signal.TargetPrice2.IsZero() {
+			// For SHORT: Hit if Price <= TP2
+			if signal.Type == entity.SignalTypeShort && currentPriceDecimal.LessThanOrEqual(signal.TargetPrice2) {
+				isTPHit = true
+			}
+			// For LONG: Hit if Price >= TP2
+			if signal.Type == entity.SignalTypeLong && currentPriceDecimal.GreaterThanOrEqual(signal.TargetPrice2) {
+				isTPHit = true
+			}
+		} else {
+			// Fallback to percentage TP
+			if priceChangePct.GreaterThanOrEqual(profitTargetPct) {
+				isTPHit = true
+			}
+		}
+
+		if isTPHit {
+			shouldClose = true
+			closeReason = "profit target reached"
+			signal.ExitPrice = currentPriceDecimal
+			signal.ExitReason = "TP"
+		}
 	}
 
 	// Check tracking time limit
-	if signal.HoursElapsed() >= float64(trackingHours) {
+	if !shouldClose && signal.HoursElapsed() >= float64(trackingHours) {
 		shouldClose = true
 		closeReason = "tracking period elapsed"
+		signal.ExitPrice = currentPriceDecimal
+		signal.ExitReason = "Time"
 	}
 
 	if shouldClose && signal.Status == entity.SignalStatusTracking {

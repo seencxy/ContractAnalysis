@@ -40,11 +40,11 @@ type StrategyStatistics struct {
 	ProfitFactor *decimal.Decimal
 
 	// Kline-based win rate metrics
-	KlineTheoreticalWinRate    *decimal.Decimal // Win rate based on high price
-	KlineCloseWinRate          *decimal.Decimal // Win rate based on close price
-	TotalKlineHours            int              // Total kline hours tracked
-	ProfitableKlineHoursHigh   int              // Hours profitable at high price
-	ProfitableKlineHoursClose  int              // Hours profitable at close price
+	KlineTheoreticalWinRate   *decimal.Decimal // Win rate based on high price
+	KlineCloseWinRate         *decimal.Decimal // Win rate based on close price
+	TotalKlineHours           int              // Total kline hours tracked
+	ProfitableKlineHoursHigh  int              // Hours profitable at high price
+	ProfitableKlineHoursClose int              // Hours profitable at close price
 
 	// Hourly return statistics
 	AvgHourlyReturnPct *decimal.Decimal // Average hourly return
@@ -74,6 +74,9 @@ type StatisticsRepository interface {
 
 	// GetByPeriod retrieves all statistics for a period
 	GetByPeriod(ctx context.Context, periodLabel string) ([]*StrategyStatistics, error)
+
+	// GetByPeriodAndStrategy retrieves statistics for a period, with optional filtering by strategy
+	GetByPeriodAndStrategy(ctx context.Context, periodLabel string, strategyName *string) ([]*StrategyStatistics, error)
 
 	// GetLatest retrieves the latest statistics for each strategy and period
 	GetLatest(ctx context.Context) ([]*StrategyStatistics, error)

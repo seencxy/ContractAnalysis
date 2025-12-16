@@ -28,6 +28,7 @@ func ToSignalResponseWithOutcome(signal *entity.Signal, outcome *entity.SignalOu
 		Status:             string(signal.Status),
 		IsConfirmed:        signal.IsConfirmed,
 		Reason:             signal.Reason,
+		StrategyContext:    signal.ConfigSnapshot,
 		CreatedAt:          signal.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:          signal.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}

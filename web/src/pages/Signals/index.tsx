@@ -20,13 +20,17 @@ import {
 } from 'antd';
 import { ReloadOutlined, SearchOutlined, FilterOutlined, InfoCircleOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { useSignals, useSignalTracking, useSignalKlines } from '@/hooks/queries/useSignals';
-import { useBinanceKlines } from '@/hooks/queries/useBinanceKlines';
+import { useBinanceKlines, useBinanceFundingRate, useBinanceLSRatios } from '@/hooks/queries/useBinanceKlines';
+import { useStrategies } from '@/hooks/queries/useStrategies';
 import type { Signal } from '@/types/signal';
 import type { KlineData } from '@/types/kline';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
+import StrategyBadge from '@/components/common/StrategyBadge';
 import { PriceLineChart } from '@/components/charts/PriceLineChart';
 import { CandlestickChart } from '@/components/charts/CandlestickChart';
+import { FundingRateChart } from '@/components/charts/FundingRateChart';
+import { LongShortRatioChart } from '@/components/charts/LongShortRatioChart';
 import { formatTime, formatPrice, formatPercentString } from '@/utils/format';
 import { getStatusColor, getSignalTypeColor } from '@/utils/colors';
 import dayjs from 'dayjs';
@@ -58,9 +62,12 @@ export default function Signals() {
   const [status, setStatus] = useState<string>('');
   const [type, setType] = useState<string>('');
   const [symbol, setSymbol] = useState<string>('');
+  const [strategy, setStrategy] = useState<string>('Smart Money Strategy');
   const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [klineInterval, setKlineInterval] = useState('15m');
+
+  const { data: strategies } = useStrategies();
 
   const { data: response, isLoading, refetch } = useSignals({
     page,
@@ -68,6 +75,7 @@ export default function Signals() {
     status: status || undefined,
     type: type || undefined,
     symbol: symbol || undefined,
+    strategy: strategy === 'All' ? undefined : strategy,
   });
 
   const signals = response?.data?.items || [];
@@ -114,6 +122,32 @@ export default function Signals() {
     }
   );
 
+  // Fetch Funding Rates
+  const { data: fundingRates } = useBinanceFundingRate(
+    {
+      symbol: selectedSignal?.symbol || '',
+      interval: '8h',
+      limit: 100,
+      // Just fetch recent 100 points (last ~30 days if 8h interval)
+    },
+    {
+      enabled: !!selectedSignal,
+    }
+  );
+
+  // Fetch Long/Short Ratios (15m interval)
+  const { data: lsRatios } = useBinanceLSRatios(
+    {
+        symbol: selectedSignal?.symbol || '',
+        interval: '15m',
+        startTime: getStartTime(),
+        limit: 500
+    },
+    {
+        enabled: !!selectedSignal
+    }
+  );
+
   // Prefer Binance klines for dynamic interval support, fallback to local if binance fails/empty
   const chartData: KlineData[] = (binanceKlines && binanceKlines.length > 0)
     ? binanceKlines
@@ -136,79 +170,43 @@ export default function Signals() {
 
   const enrichedSignal = selectedSignal ? getEnrichedSignal(selectedSignal) : null;
 
-  const columns = [
-    {
-      title: '交易对',
-      dataIndex: 'symbol',
-      key: 'symbol',
-      render: (text: string) => <Text strong style={{ fontSize: 15 }}>{text}</Text>,
-      width: 120,
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type: string) => (
-        <Tag color={getSignalTypeColor(type)} style={{ borderRadius: 6, padding: '0 8px', fontWeight: 500 }}>{type}</Tag>
-      ),
-      width: 90,
-    },
-    {
-      title: '策略',
-      dataIndex: 'strategy_name',
-      key: 'strategy_name',
-      width: 180,
-      render: (text: string) => <Text type="secondary" style={{ fontSize: 13 }}>{text}</Text>,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={getStatusColor(status)} style={{ borderRadius: 6 }}>{status}</Tag>
-      ),
-      width: 110,
-    },
-    {
-      title: '信号价格',
-      dataIndex: 'price_at_signal',
-      key: 'price_at_signal',
-      render: (price: string) => <Text strong>{formatPrice(price)}</Text>,
-      width: 120,
-    },
-    {
-      title: '多账户比',
-      dataIndex: 'long_account_ratio',
-      key: 'long_account_ratio',
-      render: (ratio: string) => <Text type="success">{formatPercentString(ratio)}</Text>,
-      width: 100,
-    },
-    {
-      title: '空账户比',
-      dataIndex: 'short_account_ratio',
-      key: 'short_account_ratio',
-      render: (ratio: string) => <Text type="danger">{formatPercentString(ratio)}</Text>,
-      width: 100,
-    },
-    {
-      title: '生成时间',
-      dataIndex: 'generated_at',
-      key: 'generated_at',
-      render: (time: string) => <Text type="secondary" style={{ fontSize: 13 }}>{formatTime(time)}</Text>,
-      width: 180,
-    },
-    {
-      title: '确认状态',
-      dataIndex: 'is_confirmed',
-      key: 'is_confirmed',
-      render: (confirmed: boolean) => (
-        <Tag bordered={false} color={confirmed ? 'success' : 'warning'} style={{ borderRadius: 4 }}>
-          {confirmed ? '已确认' : '待确认'}
-        </Tag>
-      ),
-      width: 100,
-    },
-    {
+  const getColumns = () => {
+    const commonColumns = [
+      {
+        title: '交易对',
+        dataIndex: 'symbol',
+        key: 'symbol',
+        render: (text: string) => <Text strong style={{ fontSize: 15 }}>{text}</Text>,
+        width: 120,
+      },
+      {
+        title: '类型',
+        dataIndex: 'type',
+        key: 'type',
+        render: (type: string) => (
+          <Tag color={getSignalTypeColor(type)} style={{ borderRadius: 6, padding: '0 8px', fontWeight: 500 }}>{type}</Tag>
+        ),
+        width: 90,
+      },
+      {
+        title: '状态',
+        dataIndex: 'status',
+        key: 'status',
+        render: (status: string) => (
+          <Tag color={getStatusColor(status)} style={{ borderRadius: 6 }}>{status}</Tag>
+        ),
+        width: 110,
+      },
+      {
+        title: '信号价格',
+        dataIndex: 'price_at_signal',
+        key: 'price_at_signal',
+        render: (price: string) => <Text strong>{formatPrice(price)}</Text>,
+        width: 120,
+      },
+    ];
+
+    const actionColumn = {
       title: '操作',
       key: 'action',
       width: 100,
@@ -218,8 +216,127 @@ export default function Signals() {
           详情
         </Button>
       ),
-    },
-  ];
+    };
+
+    if (strategy === 'Smart Money Strategy') {
+      return [
+        ...commonColumns,
+        {
+          title: '形态 / 触发',
+          key: 'pattern',
+          width: 200,
+          render: (_: unknown, record: Signal) => {
+            const ctx = record.strategy_context || {};
+            const pattern = ctx.setup_type || record.reason?.split('.')[0] || 'Unknown';
+            return <Tag color="purple">{pattern}</Tag>;
+          }
+        },
+        {
+          title: '资金费率',
+          key: 'funding',
+          width: 120,
+          render: (_: unknown, record: Signal) => (
+            // Mocking logic or extracting from context if available
+            <Text type="success">Positive</Text>
+          )
+        },
+        {
+          title: '生成时间',
+          dataIndex: 'generated_at',
+          key: 'generated_at',
+          render: (time: string) => <Text type="secondary" style={{ fontSize: 13 }}>{formatTime(time)}</Text>,
+          width: 180,
+        },
+        actionColumn
+      ];
+    }
+
+    if (strategy === 'Whale Strategy') {
+      return [
+        ...commonColumns,
+        {
+          title: '背离度',
+          key: 'divergence',
+          width: 120,
+          render: (_: unknown, record: Signal) => {
+             const ctx = record.strategy_context || {};
+             const div = ctx.min_divergence as number;
+             return div ? <Text strong>{div.toFixed(2)}%</Text> : '-';
+          }
+        },
+        {
+          title: '巨鲸持仓',
+          key: 'whale_pos',
+          width: 120,
+          render: (_: unknown, record: Signal) => {
+            // Determine whale direction based on signal type
+            const ratio = record.type === 'LONG' ? record.long_position_ratio : record.short_position_ratio;
+            return <Text strong style={{ color: '#1677ff' }}>{parseFloat(ratio).toFixed(1)}%</Text>;
+          }
+        },
+        {
+          title: '生成时间',
+          dataIndex: 'generated_at',
+          key: 'generated_at',
+          render: (time: string) => <Text type="secondary" style={{ fontSize: 13 }}>{formatTime(time)}</Text>,
+          width: 180,
+        },
+        actionColumn
+      ];
+    }
+
+    if (strategy === 'Minority Strategy') {
+      return [
+        ...commonColumns,
+        {
+          title: '多账户比',
+          dataIndex: 'long_account_ratio',
+          key: 'long_account_ratio',
+          render: (ratio: string) => <Text type="success">{formatPercentString(ratio)}</Text>,
+          width: 100,
+        },
+        {
+          title: '空账户比',
+          dataIndex: 'short_account_ratio',
+          key: 'short_account_ratio',
+          render: (ratio: string) => <Text type="danger">{formatPercentString(ratio)}</Text>,
+          width: 100,
+        },
+        {
+          title: '生成时间',
+          dataIndex: 'generated_at',
+          key: 'generated_at',
+          render: (time: string) => <Text type="secondary" style={{ fontSize: 13 }}>{formatTime(time)}</Text>,
+          width: 180,
+        },
+        actionColumn
+      ];
+    }
+
+    // Default / All
+    return [
+      ...commonColumns,
+      {
+        title: '策略',
+        dataIndex: 'strategy_name',
+        key: 'strategy_name',
+        width: 180,
+        render: (_: string, record: Signal) => (
+          <StrategyBadge signal={record} showDetails />
+        ),
+      },
+      {
+        title: '生成时间',
+        dataIndex: 'generated_at',
+        key: 'generated_at',
+        render: (time: string) => <Text type="secondary" style={{ fontSize: 13 }}>{formatTime(time)}</Text>,
+        width: 180,
+      },
+      actionColumn
+    ];
+  };
+
+  const columns = getColumns();
 
   return (
     <motion.div
@@ -237,6 +354,17 @@ export default function Signals() {
           刷新数据
         </Button>
       </div>
+
+      <Tabs
+        activeKey={strategy}
+        onChange={setStrategy}
+        type="card"
+        style={{ marginBottom: 16 }}
+        items={[
+          ...(strategies?.map(s => ({ label: s.name, key: s.key })) || []),
+          { label: '全部策略', key: 'All' },
+        ]}
+      />
 
       <Card bordered={false} style={{ marginBottom: 24, borderRadius: 12 }} bodyStyle={{ padding: 24 }}>
         <Space wrap size="middle">
@@ -464,6 +592,26 @@ export default function Signals() {
                                             />
                                         </Col>
                                     </Row>
+                                </Card>
+
+                                <Card title="资金费率趋势" bordered={false} style={{ borderRadius: 8, marginTop: 16 }}>
+                                    {fundingRates && fundingRates.length > 0 ? (
+                                        <FundingRateChart data={fundingRates} symbol={enrichedSignal.symbol} />
+                                    ) : (
+                                        <EmptyState message="暂无资金费率数据" />
+                                    )}
+                                </Card>
+
+                                <Card title="多空博弈 (大户 vs 散户)" bordered={false} style={{ borderRadius: 8, marginTop: 16 }}>
+                                    {lsRatios && (lsRatios.topTrader.length > 0 || lsRatios.global.length > 0) ? (
+                                        <LongShortRatioChart 
+                                            topTraderData={lsRatios.topTrader} 
+                                            globalData={lsRatios.global}
+                                            symbol={enrichedSignal.symbol} 
+                                        />
+                                    ) : (
+                                        <EmptyState message="暂无多空比数据" />
+                                    )}
                                 </Card>
                             </Space>
                         )

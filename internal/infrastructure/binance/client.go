@@ -194,6 +194,76 @@ func (c *Client) GetTopLongShortAccountRatio(ctx context.Context, symbol string,
 	return &ratios[0], nil
 }
 
+// GetOpenInterest retrieves open interest for a symbol
+func (c *Client) GetOpenInterest(ctx context.Context, symbol string) (*OpenInterest, error) {
+	endpoint := fmt.Sprintf("%s/futures/data/openInterestHist", c.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	q := req.URL.Query()
+	q.Add("symbol", symbol)
+	q.Add("period", "5m") // Get latest 5m period
+	q.Add("limit", "1")
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var interests []OpenInterest
+	if err := json.NewDecoder(resp.Body).Decode(&interests); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(interests) == 0 {
+		return nil, fmt.Errorf("no open interest data for symbol %s", symbol)
+	}
+
+	return &interests[0], nil
+}
+
+// GetFundingRate retrieves the current funding rate for a symbol
+func (c *Client) GetFundingRate(ctx context.Context, symbol string) (*FundingRate, error) {
+	endpoint := fmt.Sprintf("%s/fapi/v1/premiumIndex", c.baseURL)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	q := req.URL.Query()
+	q.Add("symbol", symbol)
+	req.URL.RawQuery = q.Encode()
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var fundingRate FundingRate
+	if err := json.NewDecoder(resp.Body).Decode(&fundingRate); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &fundingRate, nil
+}
+
 // GetPrice retrieves the current price for a symbol
 func (c *Client) GetPrice(ctx context.Context, symbol string) (float64, error) {
 	prices, err := c.client.NewListPricesService().Symbol(symbol).Do(ctx)
@@ -276,6 +346,29 @@ func (c *Client) GetMarketData(ctx context.Context, symbol string) (*MarketData,
 		return nil, fmt.Errorf("failed to get ticker: %w", err)
 	}
 
+	// Fetch open interest (optional)
+	var openInterest float64
+	oi, err := c.GetOpenInterest(ctx, symbol)
+	if err != nil {
+		c.logger.Debug("Open interest not available", zap.String("symbol", symbol), zap.Error(err))
+		openInterest = 0
+	} else {
+		openInterest = oi.Value // Use Value (in USDT) or OpenInterest (in coins)? Usually Value is more comparable.
+		// Wait, user requirement says "Open Interest, OI".
+		// binance API: sumOpenInterest (coins), sumOpenInterestValue (USDT).
+		// Let's use USDT value as it's more standard across pairs.
+	}
+
+	// Fetch funding rate
+	var fundingRate float64
+	fr, err := c.GetFundingRate(ctx, symbol)
+	if err != nil {
+		c.logger.Debug("Funding rate not available", zap.String("symbol", symbol), zap.Error(err))
+		fundingRate = 0
+	} else {
+		fundingRate = fr.FundingRate
+	}
+
 	// Convert account ratios from 0-1 to percentages 0-100
 	longAccountPct := accountRatio.LongAccount * 100
 	shortAccountPct := accountRatio.ShortAccount * 100
@@ -291,6 +384,8 @@ func (c *Client) GetMarketData(ctx context.Context, symbol string) (*MarketData,
 		ShortTraderCount:   0, // Not available from API
 		Price:              ticker.LastPrice,
 		Volume24h:          ticker.QuoteVolume,
+		OpenInterest:       openInterest,
+		FundingRate:        fundingRate,
 	}
 
 	c.logger.Debug("Fetched market data successfully",

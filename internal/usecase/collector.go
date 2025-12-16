@@ -17,11 +17,11 @@ import (
 
 // Collector orchestrates the data collection process
 type Collector struct {
-	binanceClient  *binance.Client
-	marketDataRepo *repository.MarketDataRepository
+	binanceClient   *binance.Client
+	marketDataRepo  *repository.MarketDataRepository
 	tradingPairRepo repository.TradingPairRepository
-	config         config.CollectionConfig
-	logger         *logger.Logger
+	config          config.CollectionConfig
+	logger          *logger.Logger
 }
 
 // NewCollector creates a new collector
@@ -32,11 +32,11 @@ func NewCollector(
 	cfg config.CollectionConfig,
 ) *Collector {
 	return &Collector{
-		binanceClient:  binanceClient,
-		marketDataRepo: marketDataRepo,
+		binanceClient:   binanceClient,
+		marketDataRepo:  marketDataRepo,
 		tradingPairRepo: tradingPairRepo,
-		config:         cfg,
-		logger:         logger.WithComponent("collector"),
+		config:          cfg,
+		logger:          logger.WithComponent("collector"),
 	}
 }
 
@@ -222,6 +222,8 @@ func (c *Collector) convertToEntity(data *binance.MarketData) *entity.MarketData
 		ShortTraderCount:   data.ShortTraderCount,
 		Price:              decimal.NewFromFloat(data.Price),
 		Volume24h:          decimal.NewFromFloat(data.Volume24h),
+		OpenInterest:       decimal.NewFromFloat(data.OpenInterest),
+		FundingRate:        decimal.NewFromFloat(data.FundingRate),
 	}
 }
 

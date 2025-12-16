@@ -18,6 +18,7 @@ export interface Signal {
   is_confirmed: boolean;
   confirmed_at: string; // Made mandatory based on typical usage when present
   reason?: string;
+  strategy_context?: Record<string, any>;
   created_at: string;
   updated_at: string;
   closed_at?: string; // New field

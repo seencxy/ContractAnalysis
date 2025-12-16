@@ -14,7 +14,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        // target: 'https://79aad751.r5.cpolar.top',
+        // target: 'https://4bf20a22.r5.cpolar.top',
         target: 'http://localhost:8080',
         changeOrigin: true,
       },

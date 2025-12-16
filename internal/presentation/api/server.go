@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"ContractAnalysis/config"
 	"ContractAnalysis/internal/domain/repository"
+	"ContractAnalysis/internal/domain/service"
 	"ContractAnalysis/internal/infrastructure/logger"
 
 	"github.com/gin-gonic/gin"
@@ -30,12 +32,15 @@ type ServerConfig struct {
 	WriteTimeout time.Duration
 }
 
-// Dependencies holds all dependencies for the API server
+// Dependencies holds all server dependencies
 type Dependencies struct {
-	SignalRepo     repository.SignalRepository
-	StatisticsRepo repository.StatisticsRepository
-	MarketDataRepo repository.MarketDataRepository
-	PairRepo       repository.TradingPairRepository
+	SignalRepo       repository.SignalRepository
+	MarketDataRepo   repository.MarketDataRepository
+	KlineRepo        repository.KlineRepository
+	StatsRepo        repository.StatisticsRepository
+	TradingPairRepo  repository.TradingPairRepository
+	StrategiesConfig config.StrategiesConfig
+	Strategies       []service.Strategy
 }
 
 // NewServer creates a new API server

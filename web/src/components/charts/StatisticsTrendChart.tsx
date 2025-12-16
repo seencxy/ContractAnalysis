@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import * as echarts from 'echarts';
 import type { Statistics } from '@/types/statistics';
 import dayjs from 'dayjs';
@@ -18,6 +18,51 @@ interface MetricConfig {
 export function StatisticsTrendChart({ data, metricType }: StatisticsTrendChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
+
+  const processedData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+
+    // Group by calculated_at
+    const groups = new Map<string, Statistics[]>();
+    data.forEach((item) => {
+      const key = item.calculated_at;
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(item);
+    });
+
+    // Sort by time
+    const sortedKeys = Array.from(groups.keys()).sort((a, b) =>
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+
+    return sortedKeys.map((key) => {
+      const items = groups.get(key)!;
+      const totalSignals = items.reduce((sum, item) => sum + item.total_signals, 0);
+      const totalProfitable = items.reduce((sum, item) => sum + item.profitable_signals, 0);
+
+      // Helper to get float from string
+      const getFloat = (val: string | undefined) => (val ? parseFloat(val) : 0);
+
+      // Weighted Sums
+      let weightedAvgProfit = 0;
+      let weightedProfitFactor = 0;
+
+      items.forEach((item) => {
+        weightedAvgProfit += getFloat(item.avg_profit_pct) * item.total_signals;
+        weightedProfitFactor += getFloat(item.profit_factor) * item.total_signals;
+      });
+
+      return {
+        calculated_at: key,
+        total_signals: totalSignals,
+        win_rate: totalSignals > 0 ? ((totalProfitable / totalSignals) * 100).toFixed(2) : 0,
+        avg_profit_pct: totalSignals > 0 ? (weightedAvgProfit / totalSignals).toFixed(2) : 0,
+        profit_factor: totalSignals > 0 ? (weightedProfitFactor / totalSignals).toFixed(2) : 0,
+      };
+    });
+  }, [data]);
 
   const getMetricConfig = (): MetricConfig => {
     switch (metricType) {
@@ -53,7 +98,7 @@ export function StatisticsTrendChart({ data, metricType }: StatisticsTrendChartP
   };
 
   useEffect(() => {
-    if (!chartRef.current || data.length === 0) return;
+    if (!chartRef.current || processedData.length === 0) return;
 
     if (!chartInstance.current) {
       chartInstance.current = echarts.init(chartRef.current);
@@ -78,9 +123,9 @@ export function StatisticsTrendChart({ data, metricType }: StatisticsTrendChartP
       },
       xAxis: {
         type: 'category',
-        data: data.map((item) => item.calculated_at),
+        data: processedData.map((item) => item.calculated_at),
         axisLabel: {
-          formatter: (value: string) => dayjs(value).format('MM-DD'),
+          formatter: (value: string) => dayjs(value).format('MM-DD HH:mm'),
           color: '#8c8c8c'
         },
         axisLine: {
@@ -112,8 +157,8 @@ export function StatisticsTrendChart({ data, metricType }: StatisticsTrendChartP
         {
           name: config.name,
           type: 'line',
-          data: data.map((item) => {
-            const value = item[config.dataKey];
+          data: processedData.map((item) => {
+            const value = item[config.dataKey as keyof typeof item];
             if (typeof value === 'string') {
               return parseFloat(value) || 0;
             }
@@ -154,7 +199,7 @@ export function StatisticsTrendChart({ data, metricType }: StatisticsTrendChartP
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [data, metricType]);
+  }, [processedData, metricType]);
 
   useEffect(() => {
     return () => {

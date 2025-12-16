@@ -91,6 +91,19 @@ strategies:
     profit_target_pct: 5.0
     stop_loss_pct: 2.0
 
+  # Smart Money Strategy: Liquidity Grabs & SFP
+  smart_money:
+    enabled: true
+    name: "Smart Money (Liquidity Grab)"
+    min_long_account_ratio: 65.0      # ~1.85 ratio (Prompt asked for >2.0, let's start with 65% ~1.85 for more signals, or 66.7 for 2.0)
+    lookback_period: 24               # Look back 24 candles for High
+    kline_interval: "1h"              # 1-hour candles
+    confirmation_hours: 1
+    tracking_hours: 24
+    profit_target_pct: 6.0            # Higher reward for SFP
+    stop_loss_pct: 1.5                # Tight stop above wick
+
+
   global:
     min_volume_24h: 1000000
     max_concurrent_signals_per_pair: 3

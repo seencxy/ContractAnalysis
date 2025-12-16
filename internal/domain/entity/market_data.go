@@ -26,8 +26,10 @@ type MarketData struct {
 	ShortTraderCount int
 
 	// Price and volume
-	Price     decimal.Decimal
-	Volume24h decimal.Decimal // Optional
+	Price        decimal.Decimal
+	Volume24h    decimal.Decimal // Optional
+	OpenInterest decimal.Decimal // Open Interest in USDT
+	FundingRate  decimal.Decimal // Current Funding Rate
 
 	CreatedAt time.Time
 }
@@ -74,6 +76,10 @@ func (m *MarketData) Validate() error {
 
 	if m.Price.LessThanOrEqual(decimal.Zero) {
 		return fmt.Errorf("price must be positive")
+	}
+
+	if m.OpenInterest.LessThan(decimal.Zero) {
+		return fmt.Errorf("open interest must be non-negative")
 	}
 
 	return nil
@@ -163,7 +169,7 @@ func (m *MarketData) IsValid() bool {
 
 // String returns a string representation of the market data
 func (m *MarketData) String() string {
-	return fmt.Sprintf("MarketData{Symbol: %s, Time: %s, LongAcct: %s%%, ShortAcct: %s%%, LongPos: %s%%, ShortPos: %s%%, Price: %s}",
+	return fmt.Sprintf("MarketData{Symbol: %s, Time: %s, LongAcct: %s%%, ShortAcct: %s%%, LongPos: %s%%, ShortPos: %s%%, Price: %s, OI: %s, FR: %s}",
 		m.Symbol,
 		m.Timestamp.Format(time.RFC3339),
 		m.LongAccountRatio.String(),
@@ -171,5 +177,7 @@ func (m *MarketData) String() string {
 		m.LongPositionRatio.String(),
 		m.ShortPositionRatio.String(),
 		m.Price.String(),
+		m.OpenInterest.String(),
+		m.FundingRate.String(),
 	)
 }

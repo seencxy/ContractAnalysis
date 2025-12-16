@@ -24,6 +24,8 @@ type MarketDataModel struct {
 	ShortTraderCount   int             `gorm:"column:short_trader_count;not null"`
 	Price              decimal.Decimal `gorm:"column:price;type:decimal(20,8);not null"`
 	Volume24h          decimal.Decimal `gorm:"column:volume_24h;type:decimal(20,2)"`
+	OpenInterest       decimal.Decimal `gorm:"column:open_interest;type:decimal(20,8);default:0"`
+	FundingRate        decimal.Decimal `gorm:"column:funding_rate;type:decimal(10,8);default:0"`
 	CreatedAt          time.Time       `gorm:"column:created_at;autoCreateTime"`
 }
 
@@ -46,6 +48,8 @@ func (m *MarketDataModel) ToEntity() *entity.MarketData {
 		ShortTraderCount:   m.ShortTraderCount,
 		Price:              m.Price,
 		Volume24h:          m.Volume24h,
+		OpenInterest:       m.OpenInterest,
+		FundingRate:        m.FundingRate,
 		CreatedAt:          m.CreatedAt,
 	}
 }
@@ -63,6 +67,8 @@ func (m *MarketDataModel) FromEntity(entity *entity.MarketData) {
 	m.ShortTraderCount = entity.ShortTraderCount
 	m.Price = entity.Price
 	m.Volume24h = entity.Volume24h
+	m.OpenInterest = entity.OpenInterest
+	m.FundingRate = entity.FundingRate
 }
 
 // MarketDataRepository implements repository.MarketDataRepository

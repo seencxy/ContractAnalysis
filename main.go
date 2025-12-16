@@ -125,6 +125,24 @@ func main() {
 		log.Info("Whale strategy enabled")
 	}
 
+	if cfg.Strategies.SmartMoney.Enabled {
+		smartMoneyStrategy := service.NewSmartMoneyStrategy(service.SmartMoneyStrategyConfig{
+			BaseConfig: service.StrategyConfig{
+				Name:              cfg.Strategies.SmartMoney.Name,
+				Enabled:           cfg.Strategies.SmartMoney.Enabled,
+				ConfirmationHours: cfg.Strategies.SmartMoney.ConfirmationHours,
+				TrackingHours:     cfg.Strategies.SmartMoney.TrackingHours,
+				ProfitTargetPct:   cfg.Strategies.SmartMoney.ProfitTargetPct,
+				StopLossPct:       cfg.Strategies.SmartMoney.StopLossPct,
+			},
+			MinLongAccountRatio: cfg.Strategies.SmartMoney.MinLongAccountRatio,
+			LookbackPeriod:      cfg.Strategies.SmartMoney.LookbackPeriod,
+			KlineInterval:       cfg.Strategies.SmartMoney.KlineInterval,
+		}, binanceClient) // Use binanceClient as klineRepo
+		strategies = append(strategies, smartMoneyStrategy)
+		log.Info("Smart Money strategy enabled")
+	}
+
 	log.Info("Strategies initialized", zap.Int("count", len(strategies)))
 
 	// Initialize notification system
@@ -180,10 +198,12 @@ func main() {
 			WriteTimeout: cfg.Server.WriteTimeout,
 		},
 		api.Dependencies{
-			SignalRepo:     signalRepo,
-			StatisticsRepo: statisticsRepo,
-			MarketDataRepo: marketDataRepo,
-			PairRepo:       tradingPairRepo,
+			SignalRepo:       signalRepo,
+			StatsRepo:        statisticsRepo,
+			MarketDataRepo:   marketDataRepo,
+			TradingPairRepo:  tradingPairRepo,
+			StrategiesConfig: cfg.Strategies,
+			Strategies:       strategies, // Add this line
 		},
 		log,
 		cfg.App.Version,

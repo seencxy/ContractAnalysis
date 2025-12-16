@@ -69,7 +69,7 @@ func (s *MinorityStrategy) Analyze(ctx context.Context, recentData []*entity.Mar
 
 	// Create configuration snapshot
 	configSnapshot := map[string]interface{}{
-		"min_ratio_difference":                s.config.MinRatioDifference,
+		"min_ratio_difference":                 s.config.MinRatioDifference,
 		"generate_long_when_short_ratio_above": s.config.GenerateLongWhenShortRatioAbove,
 		"generate_short_when_long_ratio_above": s.config.GenerateShortWhenLongRatioAbove,
 		"confirmation_hours":                   s.GetConfirmationHours(),
@@ -82,7 +82,7 @@ func (s *MinorityStrategy) Analyze(ctx context.Context, recentData []*entity.Mar
 	signal := entity.NewSignal(
 		latestData.Symbol,
 		signalType,
-		s.Name(),
+		s.Key(),
 		latestData,
 		s.GetConfirmationHours(),
 		reason,

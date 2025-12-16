@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
-import { Card, Radio, Table, Row, Col, Space, Typography, Tag, Statistic } from 'antd';
+import { Card, Radio, Table, Row, Col, Space, Typography, Tag, Statistic, Select } from 'antd';
 import type { RadioChangeEvent } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useStrategyStatistics } from '@/hooks/queries/useStatistics';
+import { useStrategies } from '@/hooks/queries/useStrategies';
 import type { Statistics } from '@/types/statistics';
 import { Loading } from '@/components/common/Loading';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -10,13 +11,17 @@ import dayjs from 'dayjs';
 import { motion } from 'framer-motion';
 
 const { Text, Title } = Typography;
+const { Option } = Select;
 
 type PeriodType = '24h' | '7d' | '30d' | 'all';
 
 export default function Analysis() {
   const [period, setPeriod] = useState<PeriodType>('24h');
+  const [strategy, setStrategy] = useState<string | undefined>(undefined);
 
-  const { data: response, isLoading } = useStrategyStatistics({ period });
+  const { data: strategies } = useStrategies();
+
+  const { data: response, isLoading } = useStrategyStatistics({ period, strategy });
   const allData = response?.data || [];
 
   // Separate summary (no symbol) from per-symbol data
@@ -126,14 +131,30 @@ export default function Analysis() {
       </div>
 
       <Card bordered={false} style={{ marginBottom: 24, borderRadius: 12 }} bodyStyle={{ padding: '16px 24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Text strong>统计周期:</Text>
-          <Radio.Group value={period} onChange={handlePeriodChange} buttonStyle="solid">
-            <Radio.Button value="24h">24小时</Radio.Button>
-            <Radio.Button value="7d">7天</Radio.Button>
-            <Radio.Button value="30d">30天</Radio.Button>
-            <Radio.Button value="all">全部</Radio.Button>
-          </Radio.Group>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Text strong>统计周期:</Text>
+            <Radio.Group value={period} onChange={handlePeriodChange} buttonStyle="solid">
+              <Radio.Button value="24h">24小时</Radio.Button>
+              <Radio.Button value="7d">7天</Radio.Button>
+              <Radio.Button value="30d">30天</Radio.Button>
+              <Radio.Button value="all">全部</Radio.Button>
+            </Radio.Group>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Text strong>策略筛选:</Text>
+            <Select
+              style={{ width: 200 }}
+              placeholder="全部策略"
+              allowClear
+              value={strategy}
+              onChange={setStrategy}
+            >
+              <Option value={undefined}>全部策略</Option>
+              {strategies?.map(s => <Option key={s.key} value={s.key}>{s.name}</Option>)}
+            </Select>
+          </div>
         </div>
       </Card>
 

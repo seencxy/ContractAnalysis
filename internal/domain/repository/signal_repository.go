@@ -7,6 +7,16 @@ import (
 	"ContractAnalysis/internal/domain/entity"
 )
 
+// SignalFilterParams encapsulates parameters for filtering signals
+type SignalFilterParams struct {
+	Status    string
+	Symbol    string
+	Strategy  string // StrategyName
+	Type      string
+	StartTime *time.Time
+	EndTime   *time.Time
+}
+
 // SignalRepository defines the interface for signal storage
 type SignalRepository interface {
 	// Create creates a new signal
@@ -17,6 +27,9 @@ type SignalRepository interface {
 
 	// GetByID retrieves a signal by its UUID
 	GetByID(ctx context.Context, signalID string) (*entity.Signal, error)
+
+	// GetSignalsWithFilters retrieves signals based on provided filters and applies pagination
+	GetSignalsWithFilters(ctx context.Context, filters SignalFilterParams, offset, limit int) ([]*entity.Signal, int, error)
 
 	// GetBySymbol retrieves signals for a symbol
 	GetBySymbol(ctx context.Context, symbol string, limit int) ([]*entity.Signal, error)

@@ -47,91 +47,28 @@ func (h *SignalHandler) GetSignals(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Get signals based on status filter
-	var signals []*entity.Signal
-	var err error
-
-	if req.Status != "" {
-		status := entity.SignalStatus(req.Status)
-		signals, err = h.signalRepo.GetByStatus(ctx, status, 1000) // Get more than needed
-	} else {
-		signals, err = h.signalRepo.GetAll(ctx)
+	// Construct filters for the repository
+	filters := repository.SignalFilterParams{
+		Status:    req.Status,
+		Symbol:    req.Symbol,
+		Strategy:  req.Strategy,
+		Type:      req.Type,
+		StartTime: req.StartTime,
+		EndTime:   req.EndTime,
 	}
 
+	// Get signals based on all filters
+	signals, total, err := h.signalRepo.GetSignalsWithFilters(ctx, filters, pagination.Offset, pagination.Limit)
 	if err != nil {
-		h.logger.Error("Failed to get signals", zap.Error(err))
+		h.logger.Error("Failed to get signals with filters", zap.Error(err))
 		apiErr := apierrors.NewDatabaseError("Failed to retrieve signals")
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
 
-	// Filter by symbol if provided
-	if req.Symbol != "" {
-		filtered := make([]*entity.Signal, 0)
-		for _, signal := range signals {
-			if signal.Symbol == req.Symbol {
-				filtered = append(filtered, signal)
-			}
-		}
-		signals = filtered
-	}
-
-	// Filter by strategy if provided
-	if req.Strategy != "" {
-		filtered := make([]*entity.Signal, 0)
-		for _, signal := range signals {
-			if signal.StrategyName == req.Strategy {
-				filtered = append(filtered, signal)
-			}
-		}
-		signals = filtered
-	}
-
-	// Filter by type if provided
-	if req.Type != "" {
-		signalType := entity.SignalType(req.Type)
-		filtered := make([]*entity.Signal, 0)
-		for _, signal := range signals {
-			if signal.Type == signalType {
-				filtered = append(filtered, signal)
-			}
-		}
-		signals = filtered
-	}
-
-	// Filter by time range if provided
-	if req.StartTime != nil || req.EndTime != nil {
-		filtered := make([]*entity.Signal, 0)
-		for _, signal := range signals {
-			if req.StartTime != nil && signal.GeneratedAt.Before(*req.StartTime) {
-				continue
-			}
-			if req.EndTime != nil && signal.GeneratedAt.After(*req.EndTime) {
-				continue
-			}
-			filtered = append(filtered, signal)
-		}
-		signals = filtered
-	}
-
-	// Calculate total before pagination
-	total := len(signals)
-
-	// Apply pagination
-	start := pagination.Offset
-	end := pagination.Offset + pagination.Limit
-	if start > total {
-		start = total
-	}
-	if end > total {
-		end = total
-	}
-
-	paginatedSignals := signals[start:end]
-
 	// Get outcomes for CLOSED signals
 	closedSignalIDs := make([]string, 0)
-	for _, signal := range paginatedSignals {
+	for _, signal := range signals {
 		if signal.Status == entity.SignalStatusClosed {
 			closedSignalIDs = append(closedSignalIDs, signal.SignalID)
 		}
@@ -150,8 +87,8 @@ func (h *SignalHandler) GetSignals(c *gin.Context) {
 	}
 
 	// Serialize response with outcomes
-	response := make([]*dto.SignalResponse, 0, len(paginatedSignals))
-	for _, signal := range paginatedSignals {
+	response := make([]*dto.SignalResponse, 0, len(signals))
+	for _, signal := range signals {
 		outcome := outcomeMap[signal.SignalID]
 		response = append(response, serializer.ToSignalResponseWithOutcome(signal, outcome))
 	}

@@ -108,9 +108,10 @@ type RedisConfig struct {
 
 // StrategiesConfig represents all strategy configurations
 type StrategiesConfig struct {
-	Minority MinorityStrategy `mapstructure:"minority"`
-	Whale    WhaleStrategy    `mapstructure:"whale"`
-	Global   GlobalStrategy   `mapstructure:"global"`
+	Minority   MinorityStrategy   `mapstructure:"minority"`
+	Whale      WhaleStrategy      `mapstructure:"whale"`
+	SmartMoney SmartMoneyStrategy `mapstructure:"smart_money"`
+	Global     GlobalStrategy     `mapstructure:"global"`
 }
 
 // MinorityStrategy represents minority follower strategy configuration
@@ -124,6 +125,19 @@ type MinorityStrategy struct {
 	TrackingHours                   int     `mapstructure:"tracking_hours"`
 	ProfitTargetPct                 float64 `mapstructure:"profit_target_pct"`
 	StopLossPct                     float64 `mapstructure:"stop_loss_pct"`
+}
+
+// SmartMoneyStrategy represents smart money (liquidity grab) strategy configuration
+type SmartMoneyStrategy struct {
+	Enabled             bool    `mapstructure:"enabled"`
+	Name                string  `mapstructure:"name"`
+	MinLongAccountRatio float64 `mapstructure:"min_long_account_ratio"`
+	LookbackPeriod      int     `mapstructure:"lookback_period"`
+	KlineInterval       string  `mapstructure:"kline_interval"`
+	ConfirmationHours   int     `mapstructure:"confirmation_hours"`
+	TrackingHours       int     `mapstructure:"tracking_hours"`
+	ProfitTargetPct     float64 `mapstructure:"profit_target_pct"`
+	StopLossPct         float64 `mapstructure:"stop_loss_pct"`
 }
 
 // WhaleStrategy represents whale position analysis strategy configuration
@@ -148,10 +162,10 @@ type GlobalStrategy struct {
 
 // StatisticsConfig represents statistics calculation configuration
 type StatisticsConfig struct {
-	CalculationInterval string                      `mapstructure:"calculation_interval"`
-	Periods             []string                    `mapstructure:"periods"`
-	Percentiles         []int                       `mapstructure:"percentiles"`
-	Monitoring          StatisticsMonitoringConfig  `mapstructure:"monitoring"`
+	CalculationInterval string                     `mapstructure:"calculation_interval"`
+	Periods             []string                   `mapstructure:"periods"`
+	Percentiles         []int                      `mapstructure:"percentiles"`
+	Monitoring          StatisticsMonitoringConfig `mapstructure:"monitoring"`
 }
 
 // StatisticsMonitoringConfig configures change detection thresholds

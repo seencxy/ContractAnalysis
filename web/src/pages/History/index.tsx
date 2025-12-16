@@ -26,7 +26,9 @@ import type { Signal } from '@/types/signal';
 import type { KlineData } from '@/types/kline';
 import { PriceLineChart } from '@/components/charts/PriceLineChart';
 import { CandlestickChart } from '@/components/charts/CandlestickChart';
+import StrategyBadge from '@/components/common/StrategyBadge';
 import { getStatusColor, getSignalTypeColor } from '@/utils/colors';
+import { useStrategies } from '@/hooks/queries/useStrategies';
 import { motion } from 'framer-motion';
 
 const { Text, Title } = Typography;
@@ -53,6 +55,8 @@ export default function History() {
     start_time?: string;
     end_time?: string;
   }>({});
+
+  const { data: strategies } = useStrategies();
 
   const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -183,7 +187,9 @@ export default function History() {
       key: 'strategy_name',
       width: 180,
       ellipsis: true,
-      render: (text: string) => <Text type="secondary" style={{ fontSize: 13 }}>{text}</Text>,
+      render: (_: string, record: Signal) => (
+        <StrategyBadge signal={record} showDetails />
+      ),
     },
     {
       title: '状态',
@@ -299,10 +305,7 @@ export default function History() {
               allowClear
               value={filters.strategy}
               onChange={(value) => setFilters({ ...filters, strategy: value })}
-              options={[
-                { label: 'Minority Follower', value: 'Minority Follower' },
-                { label: 'Whale Position Analysis', value: 'Whale Position Analysis' },
-              ]}
+              options={strategies?.map(s => ({ label: s.name, value: s.key })) || []}
             />
           </Col>
           <Col xs={24} sm={24} md={24} lg={4} style={{ textAlign: 'right' }}>
