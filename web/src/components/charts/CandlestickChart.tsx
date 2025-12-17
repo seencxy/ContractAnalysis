@@ -271,8 +271,6 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           axisLine: { onZero: false, lineStyle: { color: '#e0e0e0' } },
           splitLine: { show: false },
           axisLabel: { show: false }, // Hide labels for top axis
-          min: 'dataMin',
-          max: 'dataMax',
           gridIndex: 0
         },
         {
@@ -282,8 +280,6 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           axisLine: { onZero: false, lineStyle: { color: '#e0e0e0' } },
           splitLine: { show: false },
           axisLabel: { color: '#888', rotate: 30 },
-          min: 'dataMin',
-          max: 'dataMax',
           gridIndex: 1
         }
       ],
@@ -373,19 +369,16 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
 
     chartInstance.current.setOption(option, true);
 
-    const handleResize = () => {
+    const resizeObserver = new ResizeObserver(() => {
       chartInstance.current?.resize();
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    const resizeTimer = setTimeout(() => {
-      chartInstance.current?.resize();
-    }, 350);
+    });
+    
+    if (chartRef.current) {
+      resizeObserver.observe(chartRef.current);
+    }
 
     return () => {
-      clearTimeout(resizeTimer);
-      window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       if (chartInstance.current && !chartInstance.current.isDisposed()) {
         chartInstance.current.dispose();
         chartInstance.current = null;

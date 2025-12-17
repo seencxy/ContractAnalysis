@@ -235,7 +235,7 @@ export default function Signals() {
           title: '资金费率',
           key: 'funding',
           width: 120,
-          render: (_: unknown, record: Signal) => (
+          render: () => (
             // Mocking logic or extracting from context if available
             <Text type="success">Positive</Text>
           )

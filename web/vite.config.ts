@@ -14,8 +14,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        // target: 'https://4bf20a22.r5.cpolar.top',
-        target: 'http://localhost:8080',
+        target: 'https://7228edb.r10.vip.cpolar.cn',
+        // target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/binance-api': {
