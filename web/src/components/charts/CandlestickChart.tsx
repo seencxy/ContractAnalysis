@@ -54,25 +54,8 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
     // Use a neutral/distinct color for the signal price line (Purple) to avoid confusion with Long/Short candle colors
     const signalLineColor = '#722ed1'; 
 
-    // Calculate Y-axis range to ensure signal price is visible
-    const allLow = sortedKlines.map(k => k.low);
-    const allHigh = sortedKlines.map(k => k.high);
-    let minPrice = Math.min(...allLow);
-    let maxPrice = Math.max(...allHigh);
-
-    // Expand range to include signal price
-    if (!isNaN(price)) {
-      minPrice = Math.min(minPrice, price);
-      maxPrice = Math.max(maxPrice, price);
-    }
-    
-    // Add some padding (5%)
-    const range = maxPrice - minPrice;
-    minPrice = minPrice - range * 0.05;
-    maxPrice = maxPrice + range * 0.05;
-
-    const profitColor = '#00da3c'; // Green
-    const lossColor = '#ec0000';   // Red
+    const profitColor = '#0ECB81'; // Binance Green
+    const lossColor = '#F6465D';   // Binance Red
 
     // Find closest time for signal markLine
     let signalDateStr = '';
@@ -300,8 +283,6 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           axisLabel: {
               color: '#888'
           },
-          min: minPrice,
-          max: maxPrice,
           gridIndex: 0
         },
         {
@@ -316,7 +297,7 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
         {
           type: 'inside',
           xAxisIndex: [0, 1],
-          start: 0,
+          start: 50,
           end: 100
         },
         {
@@ -336,6 +317,7 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           name: 'KLine',
           type: 'candlestick',
           data: data,
+          barMaxWidth: 20,
           itemStyle: {
             color: profitColor,
             color0: lossColor,
@@ -355,6 +337,7 @@ export function CandlestickChart({ klines, signalPrice, signalType = 'LONG', sig
           type: 'bar',
           xAxisIndex: 1,
           yAxisIndex: 1,
+          barMaxWidth: 20,
           data: data.map((item) => {
               return {
                   value: item[4], // Volume
