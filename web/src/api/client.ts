@@ -28,8 +28,17 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     // 统一错误处理
+    const status = error.response?.status;
     const message = error.response?.data?.message || '请求失败';
-    console.error('API Error:', message);
+    
+    if (status === 422) {
+      const errorMsg = error.response?.data?.error || '参数验证失败';
+      console.error('Validation Error:', errorMsg);
+      // Optional: You could trigger a UI notification here if you have a global notification system
+    } else {
+      console.error('API Error:', message);
+    }
+    
     return Promise.reject(error);
   }
 );

@@ -1,7 +1,7 @@
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { statisticsApi, type StatisticsFilters, type StatisticsHistoryFilters } from '@/api/endpoints/statistics';
+import { statisticsApi, type StatisticsFilters, type StatisticsHistoryFilters, type StrategyCompareParams } from '@/api/endpoints/statistics';
 import type { ApiResponse } from '@/types/common';
-import type { Statistics, OverviewStatistics } from '@/types/statistics';
+import type { Statistics, OverviewStatistics, StrategyComparisonResponse } from '@/types/statistics';
 
 export function useOverviewStatistics(
   options?: Omit<UseQueryOptions<ApiResponse<OverviewStatistics>>, 'queryKey' | 'queryFn'>
@@ -47,6 +47,19 @@ export function useStatisticsHistory(
     queryFn: () => statisticsApi.getHistory(filters),
     enabled: !!filters.start_time && !!filters.end_time, // Only fetch when dates are set
     staleTime: 300000, // 5 minutes cache for historical data
+    ...options,
+  });
+}
+
+export function useStrategyComparison(
+  params: StrategyCompareParams,
+  options?: Omit<UseQueryOptions<ApiResponse<StrategyComparisonResponse>>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery({
+    queryKey: ['statistics', 'compare', params],
+    queryFn: () => statisticsApi.compareStrategies(params),
+    enabled: params.strategies.length >= 2,
+    staleTime: 60000,
     ...options,
   });
 }

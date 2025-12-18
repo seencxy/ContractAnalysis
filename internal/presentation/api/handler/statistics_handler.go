@@ -54,7 +54,7 @@ func (h *StatisticsHandler) GetOverview(c *gin.Context) {
 func (h *StatisticsHandler) GetStrategies(c *gin.Context) {
 	var req dto.StatisticsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		apiErr := apierrors.NewBadRequestError("Invalid query parameters", err.Error())
+		apiErr := apierrors.NewValidationError("Invalid query parameters", err.Error())
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
@@ -91,7 +91,7 @@ func (h *StatisticsHandler) GetStrategies(c *gin.Context) {
 func (h *StatisticsHandler) GetSymbols(c *gin.Context) {
 	var req dto.StatisticsRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		apiErr := apierrors.NewBadRequestError("Invalid query parameters", err.Error())
+		apiErr := apierrors.NewValidationError("Invalid query parameters", err.Error())
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
@@ -130,7 +130,7 @@ func (h *StatisticsHandler) GetSymbols(c *gin.Context) {
 func (h *StatisticsHandler) GetHistory(c *gin.Context) {
 	var req dto.StatisticsHistoryRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		apiErr := apierrors.NewBadRequestError("Invalid request parameters", err.Error())
+		apiErr := apierrors.NewValidationError("Invalid request parameters", err.Error())
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
@@ -183,6 +183,115 @@ func (h *StatisticsHandler) GetHistory(c *gin.Context) {
 	responses := serializer.ToStatisticsListResponse(stats)
 
 	utils.SuccessResponse(c, http.StatusOK, "success", responses)
+}
+
+// CompareStrategies handles GET /api/v1/statistics/compare
+func (h *StatisticsHandler) CompareStrategies(c *gin.Context) {
+	var req dto.StrategyCompareRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		apiErr := apierrors.NewValidationError("Invalid query parameters", err.Error())
+		utils.ErrorResponse(c, apiErr)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Initialize comparison metrics
+	comparisonMetrics := &dto.ComparisonMetrics{
+		WinRates:      make(map[string]string),
+		AvgReturns:    make(map[string]string),
+		TotalSignals:  make(map[string]int),
+		ProfitFactors: make(map[string]string),
+	}
+
+	detailedStats := make([]*dto.StatisticsResponse, 0, len(req.StrategyNames))
+
+	var bestWinRate, bestAvgReturn decimal.Decimal
+	var maxSignals int
+
+	// Process each strategy
+	for _, strategyName := range req.StrategyNames {
+		// Get statistics for this strategy
+		stats, err := h.statisticsRepo.GetByPeriodAndStrategy(ctx, req.Period, &strategyName)
+		if err != nil {
+			h.logger.Error("Failed to get strategy statistics",
+				zap.String("strategy", strategyName),
+				zap.Error(err))
+			continue
+		}
+
+		// Filter to get only overall stats (symbol == nil)
+		var overallStat *repository.StrategyStatistics
+		for _, stat := range stats {
+			if stat.Symbol == nil {
+				overallStat = stat
+				break
+			}
+		}
+
+		if overallStat == nil {
+			h.logger.Warn("No overall statistics found for strategy",
+				zap.String("strategy", strategyName),
+				zap.String("period", req.Period))
+			continue
+		}
+
+		// Add to detailed stats
+		detailedStats = append(detailedStats, serializer.ToStatisticsResponse(overallStat))
+
+		// Calculate metrics
+		totalSignals := overallStat.ProfitableSignals + overallStat.LosingSignals
+		comparisonMetrics.TotalSignals[strategyName] = totalSignals
+
+		// Win rate
+		if overallStat.WinRate != nil {
+			comparisonMetrics.WinRates[strategyName] = overallStat.WinRate.StringFixed(2)
+
+			if comparisonMetrics.BestWinRate == "" || overallStat.WinRate.GreaterThan(bestWinRate) {
+				bestWinRate = *overallStat.WinRate
+				comparisonMetrics.BestWinRate = strategyName
+			}
+		}
+
+		// Average return (weighted)
+		if overallStat.AvgProfitPct != nil && overallStat.AvgLossPct != nil && totalSignals > 0 {
+			profitWeight := decimal.NewFromInt(int64(overallStat.ProfitableSignals))
+			lossWeight := decimal.NewFromInt(int64(overallStat.LosingSignals))
+
+			profitContribution := overallStat.AvgProfitPct.Mul(profitWeight)
+			lossContribution := overallStat.AvgLossPct.Mul(lossWeight).Neg()
+
+			weightedReturn := profitContribution.Add(lossContribution).
+				Div(decimal.NewFromInt(int64(totalSignals)))
+
+			comparisonMetrics.AvgReturns[strategyName] = weightedReturn.StringFixed(2)
+
+			if comparisonMetrics.BestAvgReturn == "" || weightedReturn.GreaterThan(bestAvgReturn) {
+				bestAvgReturn = weightedReturn
+				comparisonMetrics.BestAvgReturn = strategyName
+			}
+		}
+
+		// Profit factor
+		if overallStat.ProfitFactor != nil {
+			comparisonMetrics.ProfitFactors[strategyName] = overallStat.ProfitFactor.StringFixed(2)
+		}
+
+		// Most signals
+		if totalSignals > maxSignals {
+			maxSignals = totalSignals
+			comparisonMetrics.MostSignals = strategyName
+		}
+	}
+
+	response := &dto.StrategyComparisonResponse{
+		Period:        req.Period,
+		Strategies:    req.StrategyNames,
+		Comparison:    comparisonMetrics,
+		DetailedStats: detailedStats,
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, "success", response)
 }
 
 // calculateOverviewStatistics calculates overview statistics for dashboard
@@ -246,6 +355,7 @@ func (h *StatisticsHandler) calculateOverviewStatistics(ctx context.Context) (*d
 		ActiveSignals:       len(activeSignals),
 		OverallWinRate24h:   &zeroStr,
 		AvgReturnPct24h:     &zeroStr,
+		StrategyBreakdown:   []dto.StrategyPerformance24h{},
 		TopPerformingPair:   "-",
 		WorstPerformingPair: "-",
 		StatusDistribution:  statusDistribution,
@@ -253,87 +363,135 @@ func (h *StatisticsHandler) calculateOverviewStatistics(ctx context.Context) (*d
 
 	// Calculate overall 24h metrics from statistics
 	if len(stats24h) > 0 {
-		var totalSignals int
-		var totalProfitable int
-		var totalReturn decimal.Decimal
+		// Strategy aggregation structure
+		type StrategyAggregation struct {
+			TotalSignals      int
+			ProfitableSignals int
+			LosingSignals     int
+			TotalReturn       decimal.Decimal
+		}
+
+		strategyMap := make(map[string]*StrategyAggregation)
 		pairReturns := make(map[string]decimal.Decimal)
 		pairCounts := make(map[string]int)
 
-		h.logger.Info("Processing statistics", zap.Int("stat_count", len(stats24h)))
+		h.logger.Info("Processing statistics for strategy breakdown", zap.Int("stat_count", len(stats24h)))
 
-		// Aggregate all statistics (whether overall or per-symbol)
-		var recordsWithSignals int
-		var recordsWithoutAvgPct int
-
+		// First pass: Aggregate by strategy (only process strategy-level stats where Symbol is nil)
 		for _, stat := range stats24h {
 			signalCount := stat.ProfitableSignals + stat.LosingSignals
 
-			if signalCount > 0 {
-				recordsWithSignals++
+			if signalCount == 0 {
+				continue
+			}
 
-				// Accumulate for overall metrics
-				totalSignals += signalCount
-				totalProfitable += stat.ProfitableSignals
+			// Process strategy-level statistics (Symbol == nil)
+			if stat.Symbol == nil {
+				strategyName := stat.StrategyName
 
-				// Calculate weighted return
+				if _, exists := strategyMap[strategyName]; !exists {
+					strategyMap[strategyName] = &StrategyAggregation{
+						TotalReturn: decimal.Zero,
+					}
+				}
+
+				agg := strategyMap[strategyName]
+				agg.TotalSignals += signalCount
+				agg.ProfitableSignals += stat.ProfitableSignals
+				agg.LosingSignals += stat.LosingSignals
+
+				// Calculate weighted return for this strategy
 				if stat.AvgProfitPct != nil && stat.AvgLossPct != nil {
 					profitWeight := decimal.NewFromInt(int64(stat.ProfitableSignals))
 					lossWeight := decimal.NewFromInt(int64(stat.LosingSignals))
 
 					profitContribution := stat.AvgProfitPct.Mul(profitWeight)
-					lossContribution := stat.AvgLossPct.Mul(lossWeight).Neg() // Loss is negative
+					lossContribution := stat.AvgLossPct.Mul(lossWeight).Neg()
 
-					totalReturn = totalReturn.Add(profitContribution).Add(lossContribution)
-				} else {
-					recordsWithoutAvgPct++
+					agg.TotalReturn = agg.TotalReturn.Add(profitContribution).Add(lossContribution)
 				}
+			}
 
-				// Track per-symbol performance
-				if stat.Symbol != nil {
-					symbol := *stat.Symbol
+			// Track per-symbol performance (for top/worst pairs)
+			if stat.Symbol != nil {
+				symbol := *stat.Symbol
 
-					if stat.AvgProfitPct != nil && stat.AvgLossPct != nil {
-						profitWeight := decimal.NewFromInt(int64(stat.ProfitableSignals))
-						lossWeight := decimal.NewFromInt(int64(stat.LosingSignals))
+				if stat.AvgProfitPct != nil && stat.AvgLossPct != nil {
+					profitWeight := decimal.NewFromInt(int64(stat.ProfitableSignals))
+					lossWeight := decimal.NewFromInt(int64(stat.LosingSignals))
 
-						profitContribution := stat.AvgProfitPct.Mul(profitWeight)
-						lossContribution := stat.AvgLossPct.Mul(lossWeight).Neg()
+					profitContribution := stat.AvgProfitPct.Mul(profitWeight)
+					lossContribution := stat.AvgLossPct.Mul(lossWeight).Neg()
 
-						symbolReturn := profitContribution.Add(lossContribution)
-						pairReturns[symbol] = pairReturns[symbol].Add(symbolReturn)
-						pairCounts[symbol] += signalCount
-					}
+					symbolReturn := profitContribution.Add(lossContribution)
+					pairReturns[symbol] = pairReturns[symbol].Add(symbolReturn)
+					pairCounts[symbol] += signalCount
 				}
 			}
 		}
 
-		h.logger.Info("Aggregated statistics",
-			zap.Int("total_records", len(stats24h)),
-			zap.Int("records_with_signals", recordsWithSignals),
-			zap.Int("records_without_avg_pct", recordsWithoutAvgPct),
-			zap.Int("total_signals", totalSignals),
-			zap.Int("total_profitable", totalProfitable))
+		// Second pass: Build strategy breakdown and calculate global metrics
+		strategyBreakdown := make([]dto.StrategyPerformance24h, 0, len(strategyMap))
+		var globalTotalSignals, globalProfitable int
+		var globalTotalReturn decimal.Decimal
 
-		// Calculate overall win rate
-		if totalSignals > 0 {
-			winRate := decimal.NewFromInt(int64(totalProfitable)).Div(decimal.NewFromInt(int64(totalSignals))).Mul(decimal.NewFromInt(100))
-			winRateStr := winRate.String()
-			response.OverallWinRate24h = &winRateStr
-			h.logger.Info("Calculated win rate",
-				zap.Int("total_signals", totalSignals),
-				zap.Int("profitable", totalProfitable),
-				zap.String("win_rate", winRateStr))
-		} else {
-			h.logger.Warn("No signals to calculate win rate")
+		for strategyName, agg := range strategyMap {
+			perf := dto.StrategyPerformance24h{
+				StrategyName:    strategyName,
+				SignalCount:     agg.TotalSignals,
+				ProfitableCount: agg.ProfitableSignals,
+				LosingCount:     agg.LosingSignals,
+			}
+
+			// Calculate win rate for this strategy
+			if agg.TotalSignals > 0 {
+				winRate := decimal.NewFromInt(int64(agg.ProfitableSignals)).
+					Div(decimal.NewFromInt(int64(agg.TotalSignals))).
+					Mul(decimal.NewFromInt(100))
+				winRateStr := winRate.StringFixed(2)
+				perf.WinRate = &winRateStr
+
+				// Calculate average return for this strategy
+				avgReturn := agg.TotalReturn.Div(decimal.NewFromInt(int64(agg.TotalSignals)))
+				avgReturnStr := avgReturn.StringFixed(2)
+				perf.AvgReturnPct = &avgReturnStr
+			}
+
+			strategyBreakdown = append(strategyBreakdown, perf)
+
+			// Accumulate to global metrics
+			globalTotalSignals += agg.TotalSignals
+			globalProfitable += agg.ProfitableSignals
+			globalTotalReturn = globalTotalReturn.Add(agg.TotalReturn)
+
+			h.logger.Info("Strategy breakdown calculated",
+				zap.String("strategy", strategyName),
+				zap.Int("signals", agg.TotalSignals),
+				zap.Int("profitable", agg.ProfitableSignals))
 		}
 
-		// Calculate average return
-		if totalSignals > 0 {
-			avgReturn := totalReturn.Div(decimal.NewFromInt(int64(totalSignals)))
-			avgReturnStr := avgReturn.String()
+		response.StrategyBreakdown = strategyBreakdown
+
+		// Calculate global win rate (from strategy aggregates)
+		if globalTotalSignals > 0 {
+			winRate := decimal.NewFromInt(int64(globalProfitable)).
+				Div(decimal.NewFromInt(int64(globalTotalSignals))).
+				Mul(decimal.NewFromInt(100))
+			winRateStr := winRate.StringFixed(2)
+			response.OverallWinRate24h = &winRateStr
+
+			// Calculate global average return
+			avgReturn := globalTotalReturn.Div(decimal.NewFromInt(int64(globalTotalSignals)))
+			avgReturnStr := avgReturn.StringFixed(2)
 			response.AvgReturnPct24h = &avgReturnStr
-			h.logger.Info("Calculated average return",
+
+			h.logger.Info("Global metrics calculated",
+				zap.Int("total_signals", globalTotalSignals),
+				zap.Int("profitable", globalProfitable),
+				zap.String("win_rate", winRateStr),
 				zap.String("avg_return", avgReturnStr))
+		} else {
+			h.logger.Warn("No signals to calculate global metrics")
 		}
 
 		// Find top and worst performing pairs

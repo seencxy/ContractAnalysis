@@ -154,15 +154,45 @@ type SignalStatusDistribution struct {
 	Invalidated int `json:"invalidated"`
 }
 
+// StrategyPerformance24h represents 24-hour performance for a single strategy
+type StrategyPerformance24h struct {
+	StrategyName    string  `json:"strategy_name"`
+	SignalCount     int     `json:"signal_count"`
+	WinRate         *string `json:"win_rate,omitempty"`
+	AvgReturnPct    *string `json:"avg_return_pct,omitempty"`
+	ProfitableCount int     `json:"profitable_count"`
+	LosingCount     int     `json:"losing_count"`
+}
+
 // OverviewStatisticsResponse represents overall statistics
 type OverviewStatisticsResponse struct {
 	TotalSignalsToday   int                       `json:"total_signals_today"`
 	ActiveSignals       int                       `json:"active_signals"`
 	OverallWinRate24h   *string                   `json:"overall_win_rate_24h,omitempty"`
 	AvgReturnPct24h     *string                   `json:"avg_return_pct_24h,omitempty"`
+	StrategyBreakdown   []StrategyPerformance24h  `json:"strategy_breakdown"`
 	TopPerformingPair   string                    `json:"top_performing_pair,omitempty"`
 	WorstPerformingPair string                    `json:"worst_performing_pair,omitempty"`
 	StatusDistribution  *SignalStatusDistribution `json:"status_distribution,omitempty"`
+}
+
+// ComparisonMetrics represents comparison metrics across strategies
+type ComparisonMetrics struct {
+	WinRates      map[string]string `json:"win_rates"`       // strategy -> win rate
+	AvgReturns    map[string]string `json:"avg_returns"`     // strategy -> average return
+	TotalSignals  map[string]int    `json:"total_signals"`   // strategy -> signal count
+	ProfitFactors map[string]string `json:"profit_factors"`  // strategy -> profit factor
+	BestWinRate   string            `json:"best_win_rate"`   // strategy with best win rate
+	BestAvgReturn string            `json:"best_avg_return"` // strategy with best average return
+	MostSignals   string            `json:"most_signals"`    // strategy with most signals
+}
+
+// StrategyComparisonResponse represents strategy comparison results
+type StrategyComparisonResponse struct {
+	Period        string                `json:"period"`
+	Strategies    []string              `json:"strategies"`
+	Comparison    *ComparisonMetrics    `json:"comparison"`
+	DetailedStats []*StatisticsResponse `json:"detailed_stats"`
 }
 
 // StrategyResponse represents a trading strategy

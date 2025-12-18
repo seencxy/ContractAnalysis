@@ -33,7 +33,7 @@ func NewSignalHandler(signalRepo repository.SignalRepository, log *logger.Logger
 func (h *SignalHandler) GetSignals(c *gin.Context) {
 	var req dto.SignalListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		apiErr := apierrors.NewBadRequestError("Invalid query parameters", err.Error())
+		apiErr := apierrors.NewValidationError("Invalid query parameters", err.Error())
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
@@ -49,48 +49,27 @@ func (h *SignalHandler) GetSignals(c *gin.Context) {
 
 	// Construct filters for the repository
 	filters := repository.SignalFilterParams{
-		Status:    req.Status,
-		Symbol:    req.Symbol,
-		Strategy:  req.Strategy,
-		Type:      req.Type,
-		StartTime: req.StartTime,
-		EndTime:   req.EndTime,
+		Status:       req.Status,
+		Symbol:       req.Symbol,
+		StrategyName: req.StrategyName,
+		Type:         req.Type,
+		StartTime:    req.StartTime,
+		EndTime:      req.EndTime,
 	}
 
-	// Get signals based on all filters
-	signals, total, err := h.signalRepo.GetSignalsWithFilters(ctx, filters, pagination.Offset, pagination.Limit)
+	// Get signals with outcomes using single LEFT JOIN query (optimized)
+	signalsWithOutcomes, total, err := h.signalRepo.GetSignalsWithOutcomes(ctx, filters, pagination.Offset, pagination.Limit)
 	if err != nil {
-		h.logger.Error("Failed to get signals with filters", zap.Error(err))
+		h.logger.Error("Failed to get signals with outcomes", zap.Error(err))
 		apiErr := apierrors.NewDatabaseError("Failed to retrieve signals")
 		utils.ErrorResponse(c, apiErr)
 		return
 	}
 
-	// Get outcomes for CLOSED signals
-	closedSignalIDs := make([]string, 0)
-	for _, signal := range signals {
-		if signal.Status == entity.SignalStatusClosed {
-			closedSignalIDs = append(closedSignalIDs, signal.SignalID)
-		}
-	}
-
-	// Fetch outcomes if there are CLOSED signals
-	var outcomeMap map[string]*entity.SignalOutcome
-	if len(closedSignalIDs) > 0 {
-		outcomeMap, err = h.signalRepo.GetOutcomesBySignalIDs(ctx, closedSignalIDs)
-		if err != nil {
-			h.logger.Warn("Failed to get outcomes for closed signals", zap.Error(err))
-			outcomeMap = make(map[string]*entity.SignalOutcome)
-		}
-	} else {
-		outcomeMap = make(map[string]*entity.SignalOutcome)
-	}
-
 	// Serialize response with outcomes
-	response := make([]*dto.SignalResponse, 0, len(signals))
-	for _, signal := range signals {
-		outcome := outcomeMap[signal.SignalID]
-		response = append(response, serializer.ToSignalResponseWithOutcome(signal, outcome))
+	response := make([]*dto.SignalResponse, 0, len(signalsWithOutcomes))
+	for _, swo := range signalsWithOutcomes {
+		response = append(response, serializer.ToSignalResponseWithOutcome(swo.Signal, swo.Outcome))
 	}
 
 	utils.PaginatedSuccessResponse(c, http.StatusOK, "success", response, pagination.Page, pagination.Limit, total)

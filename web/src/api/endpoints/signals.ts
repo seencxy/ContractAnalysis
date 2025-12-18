@@ -7,7 +7,7 @@ export interface SignalFilters {
   limit?: number;
   status?: string;
   symbol?: string;
-  strategy?: string;
+  strategy_name?: string;
   type?: string;
   start_time?: string;
   end_time?: string;

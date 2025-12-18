@@ -84,10 +84,10 @@ strategies:
   whale:
     enabled: true
     name: "Whale Position Analysis"
-    min_ratio_difference: 60.0  # Account ratio difference (more realistic)
-    whale_position_threshold: 55.0  # Whale position must be >=55% (more realistic)
+    min_ratio_difference: 55.0  # Account ratio difference (relaxed from 60.0)
+    whale_position_threshold: 52.0  # Whale position must be >=52% (relaxed from 55.0)
     confirmation_hours: 2
-    min_divergence: 15.0  # Minimum divergence between ratios (more realistic)
+    min_divergence: 12.0  # Minimum divergence between ratios (relaxed from 15.0)
     tracking_hours: 24
     profit_target_pct: 5.0
     stop_loss_pct: 2.0
@@ -96,7 +96,7 @@ strategies:
   smart_money:
     enabled: true
     name: "Smart Money (Liquidity Grab)"
-    min_long_account_ratio: 65.0      # ~1.85 ratio (Prompt asked for >2.0, let's start with 65% ~1.85 for more signals, or 66.7 for 2.0)
+    min_long_account_ratio: 62.0      # ~1.63 ratio (relaxed from 65.0 to generate more signals)
     lookback_period: 24               # Look back 24 candles for High
     kline_interval: "1h"              # 1-hour candles
     confirmation_hours: 1
@@ -217,4 +217,4 @@ monitoring:
 features:
   backtest_mode: false
   dry_run: false  # If true, collect data but don't send notifications
-  debug_signals: false  # Log detailed signal calculation info
+  debug_signals: true  # Log detailed signal calculation info

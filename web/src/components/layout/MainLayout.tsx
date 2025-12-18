@@ -11,6 +11,7 @@ import {
   MenuUnfoldOutlined,
   UserOutlined,
   BellOutlined,
+  SwapOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +28,7 @@ export function MainLayout() {
     { key: '/', label: '仪表盘', icon: <DashboardOutlined /> },
     { key: '/signals', label: '实时信号', icon: <SignalFilled /> },
     { key: '/analysis', label: '策略分析', icon: <LineChartOutlined /> },
+    { key: '/strategy-comparison', label: '策略对比', icon: <SwapOutlined /> },
     { key: '/ranking', label: '交易对排名', icon: <TrophyOutlined /> },
     { key: '/history', label: '历史查询', icon: <HistoryOutlined /> },
     { key: '/statistics-history', label: '统计历史', icon: <BarChartOutlined /> },

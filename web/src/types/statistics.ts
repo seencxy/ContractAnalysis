@@ -43,6 +43,17 @@ export interface Statistics {
   calculated_at: string;
 }
 
+export type StatisticsResponse = Statistics;
+
+export interface StrategyPerformance24h {
+  strategy_name: string;
+  signal_count: number;
+  win_rate?: string;
+  avg_return_pct?: string;
+  profitable_count: number;
+  losing_count: number;
+}
+
 export interface SignalStatusDistribution {
   pending: number;
   confirmed: number;
@@ -56,7 +67,25 @@ export interface OverviewStatistics {
   active_signals: number;
   overall_win_rate_24h?: string;
   avg_return_pct_24h?: string;
+  strategy_breakdown?: StrategyPerformance24h[];
   top_performing_pair?: string;
   worst_performing_pair?: string;
   status_distribution?: SignalStatusDistribution;
+}
+
+export interface ComparisonMetrics {
+  win_rates: Record<string, string>;
+  avg_returns: Record<string, string>;
+  total_signals: Record<string, number>;
+  profit_factors: Record<string, string>;
+  best_win_rate: string;
+  best_avg_return: string;
+  most_signals: string;
+}
+
+export interface StrategyComparisonResponse {
+  period: string;
+  strategies: string[];
+  comparison: ComparisonMetrics;
+  detailed_stats: StatisticsResponse[];
 }

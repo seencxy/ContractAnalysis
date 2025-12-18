@@ -119,9 +119,43 @@ func (a *Analyzer) analyzeSymbol(ctx context.Context, symbol string) ([]*entity.
 	// Apply all enabled strategies
 	var allSignals []*entity.Signal
 
+	// Get the latest market data for detailed logging
+	latestData := recentData[0]
+
 	for _, strategy := range a.strategies {
 		if !strategy.IsEnabled() {
 			continue
+		}
+
+		a.logger.Debug("Analyzing strategy",
+			zap.String("symbol", symbol),
+			zap.String("strategy", strategy.Name()),
+			zap.Int("data_points", len(recentData)),
+		)
+
+		// Pre-check: Test if conditions are met (for debugging)
+		shouldGenerate, reason, preCheckErr := strategy.ShouldGenerateSignal(ctx, latestData)
+		if preCheckErr != nil {
+			a.logger.WithError(preCheckErr).WithSymbol(symbol).WithStrategy(strategy.Name()).Warn("Strategy pre-check failed")
+		}
+
+		if !shouldGenerate {
+			a.logger.Debug("Strategy conditions not met",
+				zap.String("symbol", symbol),
+				zap.String("strategy", strategy.Name()),
+				zap.String("reason", "One or more conditions failed"),
+				zap.Float64("long_account_ratio", latestData.LongAccountRatio.InexactFloat64()),
+				zap.Float64("short_account_ratio", latestData.ShortAccountRatio.InexactFloat64()),
+				zap.Float64("long_position_ratio", latestData.LongPositionRatio.InexactFloat64()),
+				zap.Float64("short_position_ratio", latestData.ShortPositionRatio.InexactFloat64()),
+				zap.Float64("funding_rate", latestData.FundingRate.InexactFloat64()),
+			)
+		} else {
+			a.logger.Debug("Strategy conditions MET, attempting signal generation",
+				zap.String("symbol", symbol),
+				zap.String("strategy", strategy.Name()),
+				zap.String("reason", reason),
+			)
 		}
 
 		signals, err := strategy.Analyze(ctx, recentData)
@@ -153,6 +187,11 @@ func (a *Analyzer) analyzeSymbol(ctx context.Context, symbol string) ([]*entity.
 
 				allSignals = append(allSignals, signal)
 			}
+		} else {
+			a.logger.Debug("Strategy did not generate signals after analysis",
+				zap.String("symbol", symbol),
+				zap.String("strategy", strategy.Name()),
+			)
 		}
 	}
 

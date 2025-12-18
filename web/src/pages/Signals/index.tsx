@@ -62,7 +62,7 @@ export default function Signals() {
   const [status, setStatus] = useState<string>('');
   const [type, setType] = useState<string>('');
   const [symbol, setSymbol] = useState<string>('');
-  const [strategy, setStrategy] = useState<string>('Smart Money Strategy');
+  const [strategy, setStrategy] = useState<string>('All');
   const [selectedSignal, setSelectedSignal] = useState<Signal | null>(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [klineInterval, setKlineInterval] = useState('15m');
@@ -75,7 +75,7 @@ export default function Signals() {
     status: status || undefined,
     type: type || undefined,
     symbol: symbol || undefined,
-    strategy: strategy === 'All' ? undefined : strategy,
+    strategy_name: strategy === 'All' ? undefined : strategy,
   });
 
   const signals = response?.data?.items || [];

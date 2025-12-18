@@ -193,47 +193,64 @@ export default function Dashboard() {
 
       <Row gutter={[24, 24]} style={{ marginBottom: 24 }}>
         <Col span={24}>
-            <motion.div variants={itemVariants}>
-                <Card title="运行中的策略" bordered={false} style={{ borderRadius: 12 }}>
-                    {strategiesLoading ? (
-                        <Loading />
-                    ) : (
-                        <Row gutter={[16, 16]}>
-                            {strategies?.map(s => s.enabled && (
-                                                            <Col xs={24} sm={8} key={s.key}>
-                                                                <Card 
-                                                                    size="small" 
-                                                                    bordered={false} // Remove default border
-                                                                    style={{ 
-                                                                        borderRadius: 8, 
-                                                                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)', // Subtle shadow
-                                                                        transition: 'all 0.3s',
-                                                                        cursor: 'pointer',
-                                                                    }}
-                                                                    hoverable
-                                                                >
-                                                                    <div style={{ display: 'flex', flexDirection: 'column', minHeight: 80 }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                                            <Typography.Text strong style={{ fontSize: 16 }}>{s.name}</Typography.Text>
-                                                                            <Tag color="success" style={{ marginLeft: 8 }}>运行中</Tag>
-                                                                        </div>
-                                                                        <Typography.Paragraph 
-                                                                            type="secondary" 
-                                                                            style={{ fontSize: 12, margin: 0, lineHeight: '18px' }}
-                                                                            ellipsis={{ rows: 2, expandable: false }}
-                                                                        >
-                                                                            {s.description}
-                                                                        </Typography.Paragraph>
-                                                                    </div>
-                                                                </Card>
-                                                            </Col>                            ))}
-                            {(!strategies || strategies.filter(s => s.enabled).length === 0) && (
-                                <Col span={24}><EmptyState message="暂无运行中的策略" /></Col>
-                            )}
-                        </Row>
-                    )}
-                </Card>
-            </motion.div>
+          <motion.div variants={itemVariants}>
+            <Card title="策略实时表现 (24h)" bordered={false} style={{ borderRadius: 12 }}>
+              {overviewLoading ? (
+                <Loading />
+              ) : (
+                <Row gutter={[16, 16]}>
+                  {overview?.strategy_breakdown?.map((s) => (
+                    <Col xs={24} sm={8} key={s.strategy_name}>
+                      <Card
+                        size="small"
+                        bordered={false}
+                        style={{
+                          borderRadius: 8,
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                          transition: 'all 0.3s',
+                          cursor: 'default',
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                            <Typography.Text strong style={{ fontSize: 16 }}>
+                              {s.strategy_name}
+                            </Typography.Text>
+                            <Tag color="blue">{s.signal_count} 信号</Tag>
+                          </div>
+                          <Row gutter={8}>
+                            <Col span={12}>
+                              <div style={{ color: '#8c8c8c', fontSize: 12 }}>胜率</div>
+                              <div style={{ fontSize: 18, fontWeight: 600, color: '#1f1f1f' }}>
+                                {s.win_rate || '-'}%
+                              </div>
+                            </Col>
+                            <Col span={12}>
+                              <div style={{ color: '#8c8c8c', fontSize: 12 }}>平均收益</div>
+                              <div style={{ 
+                                fontSize: 18, 
+                                fontWeight: 600, 
+                                color: parseFloat(s.avg_return_pct || '0') >= 0 ? '#52c41a' : '#ff4d4f' 
+                              }}>
+                                {s.avg_return_pct || '-'}%
+                              </div>
+                            </Col>
+                          </Row>
+                          <div style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 12 }}>
+                            <span style={{ color: '#52c41a' }}>✅ {s.profitable_count} 盈利</span>
+                            <span style={{ color: '#ff4d4f' }}>❌ {s.losing_count} 亏损</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                  {(!overview?.strategy_breakdown || overview.strategy_breakdown.length === 0) && (
+                    <Col span={24}><EmptyState message="暂无策略表现数据" /></Col>
+                  )}
+                </Row>
+              )}
+            </Card>
+          </motion.div>
         </Col>
       </Row>
 

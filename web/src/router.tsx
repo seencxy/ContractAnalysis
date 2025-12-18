@@ -6,6 +6,7 @@ import Analysis from '@/pages/Analysis';
 import Ranking from '@/pages/Ranking';
 import History from '@/pages/History';
 import StatisticsHistory from '@/pages/StatisticsHistory';
+import StrategyComparison from '@/pages/StrategyComparison';
 
 export const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: 'ranking', element: <Ranking /> },
       { path: 'history', element: <History /> },
       { path: 'statistics-history', element: <StatisticsHistory /> },
+      { path: 'strategy-comparison', element: <StrategyComparison /> },
     ],
   },
 ], {

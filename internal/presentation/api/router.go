@@ -52,6 +52,7 @@ func SetupRouter(deps Dependencies, log *logger.Logger, version string) *gin.Eng
 			statistics.GET("/strategies", statisticsHandler.GetStrategies)
 			statistics.GET("/symbols", statisticsHandler.GetSymbols)
 			statistics.GET("/history", statisticsHandler.GetHistory)
+			statistics.GET("/compare", statisticsHandler.CompareStrategies)
 		}
 	}
 

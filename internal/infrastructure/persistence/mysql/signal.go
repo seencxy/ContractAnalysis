@@ -417,8 +417,8 @@ func (r *SignalRepository) GetSignalsWithFilters(ctx context.Context, filters re
 	if filters.Symbol != "" {
 		db = db.Where("symbol = ?", filters.Symbol)
 	}
-	if filters.Strategy != "" {
-		db = db.Where("strategy_name = ?", filters.Strategy)
+	if filters.StrategyName != "" {
+		db = db.Where("strategy_name = ?", filters.StrategyName)
 	}
 	if filters.Type != "" {
 		db = db.Where("signal_type = ?", filters.Type)
@@ -450,6 +450,77 @@ func (r *SignalRepository) GetSignalsWithFilters(ctx context.Context, filters re
 	}
 
 	return signals, int(total), nil
+}
+
+// GetSignalsWithOutcomes retrieves signals with their outcomes using a single LEFT JOIN query
+func (r *SignalRepository) GetSignalsWithOutcomes(ctx context.Context, filters repository.SignalFilterParams, offset, limit int) ([]*repository.SignalWithOutcome, int, error) {
+	// Create a temporary struct to hold the joined result
+	type JoinedResult struct {
+		SignalModel
+		OutcomeModel *SignalOutcomeModel `gorm:"foreignKey:SignalID;references:SignalID"`
+	}
+
+	var results []JoinedResult
+	db := r.db.WithContext(ctx).Model(&SignalModel{}).
+		Joins("LEFT JOIN signal_outcomes ON signal_outcomes.signal_id = signals.signal_id")
+
+	// Apply filters (all referring to signals table)
+	if filters.Status != "" {
+		db = db.Where("signals.status = ?", filters.Status)
+	}
+	if filters.Symbol != "" {
+		db = db.Where("signals.symbol = ?", filters.Symbol)
+	}
+	if filters.StrategyName != "" {
+		db = db.Where("signals.strategy_name = ?", filters.StrategyName)
+	}
+	if filters.Type != "" {
+		db = db.Where("signals.signal_type = ?", filters.Type)
+	}
+	if filters.StartTime != nil {
+		db = db.Where("signals.generated_at >= ?", *filters.StartTime)
+	}
+	if filters.EndTime != nil {
+		db = db.Where("signals.generated_at <= ?", *filters.EndTime)
+	}
+
+	// Count total records before pagination
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count signals: %w", err)
+	}
+
+	// Select all signal columns and all outcome columns
+	if err := db.
+		Select("signals.*, signal_outcomes.*").
+		Order("signals.generated_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Scan(&results).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to get signals with outcomes: %w", err)
+	}
+
+	// Convert to repository.SignalWithOutcome
+	signalsWithOutcomes := make([]*repository.SignalWithOutcome, 0, len(results))
+	for _, result := range results {
+		signal, err := result.SignalModel.ToEntity()
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to convert signal model: %w", err)
+		}
+
+		swo := &repository.SignalWithOutcome{
+			Signal: signal,
+		}
+
+		// If outcome exists (ID != 0 means we found a matching outcome)
+		if result.OutcomeModel != nil && result.OutcomeModel.ID != 0 {
+			swo.Outcome = result.OutcomeModel.ToEntity()
+		}
+
+		signalsWithOutcomes = append(signalsWithOutcomes, swo)
+	}
+
+	return signalsWithOutcomes, int(total), nil
 }
 
 // GetBySymbol retrieves signals for a symbol

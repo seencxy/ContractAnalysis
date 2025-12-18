@@ -9,12 +9,18 @@ import (
 
 // SignalFilterParams encapsulates parameters for filtering signals
 type SignalFilterParams struct {
-	Status    string
-	Symbol    string
-	Strategy  string // StrategyName
-	Type      string
-	StartTime *time.Time
-	EndTime   *time.Time
+	Status       string
+	Symbol       string
+	StrategyName string
+	Type         string
+	StartTime    *time.Time
+	EndTime      *time.Time
+}
+
+// SignalWithOutcome represents a signal with its associated outcome (if exists)
+type SignalWithOutcome struct {
+	Signal  *entity.Signal
+	Outcome *entity.SignalOutcome
 }
 
 // SignalRepository defines the interface for signal storage
@@ -30,6 +36,9 @@ type SignalRepository interface {
 
 	// GetSignalsWithFilters retrieves signals based on provided filters and applies pagination
 	GetSignalsWithFilters(ctx context.Context, filters SignalFilterParams, offset, limit int) ([]*entity.Signal, int, error)
+
+	// GetSignalsWithOutcomes retrieves signals with their outcomes using a single LEFT JOIN query
+	GetSignalsWithOutcomes(ctx context.Context, filters SignalFilterParams, offset, limit int) ([]*SignalWithOutcome, int, error)
 
 	// GetBySymbol retrieves signals for a symbol
 	GetBySymbol(ctx context.Context, symbol string, limit int) ([]*entity.Signal, error)
