@@ -239,7 +239,7 @@ func (a *Analyzer) ValidatePendingSignals(ctx context.Context) error {
 		// Find the strategy that generated this signal
 		var strategy service.Strategy
 		for _, s := range a.strategies {
-			if s.Name() == signal.StrategyName {
+			if s.Key() == signal.StrategyName {
 				strategy = s
 				break
 			}
