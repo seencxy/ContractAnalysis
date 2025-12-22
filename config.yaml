@@ -112,7 +112,7 @@ strategies:
 
 # Statistics Configuration
 statistics:
-  calculation_interval: "0 0 */6 * * *"  # Every 6 hours
+  calculation_interval: "0 0 * * * *"  # Every 1 hour
   periods:
     - "24h"
     - "7d"
