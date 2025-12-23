@@ -100,6 +100,14 @@ func (s *SmartMoneyStrategy) Analyze(ctx context.Context, recentData []*entity.M
 	// Set Trade Levels
 	signal.SetTradeLevels(setup.StopLoss, setup.TakeProfit1, setup.TakeProfit2)
 
+	// Enable trailing stop if configured
+	trailingStopCfg := s.GetTrailingStopConfig()
+	if trailingStopCfg.Enabled {
+		signal.TrailingStopEnabled = true
+		signal.TrailingStopActivationPct = decimal.NewFromFloat(trailingStopCfg.ActivationPct)
+		signal.TrailingStopDistancePct = decimal.NewFromFloat(trailingStopCfg.TrailDistancePct)
+	}
+
 	return []*entity.Signal{signal}, nil
 }
 

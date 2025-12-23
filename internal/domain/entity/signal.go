@@ -52,8 +52,6 @@ type Signal struct {
 	ShortAccountRatio  decimal.Decimal
 	LongPositionRatio  decimal.Decimal
 	ShortPositionRatio decimal.Decimal
-	LongTraderCount    int
-	ShortTraderCount   int
 
 	// Confirmation tracking
 	ConfirmationStart time.Time
@@ -75,6 +73,14 @@ type Signal struct {
 	ExitPrice     decimal.Decimal // Final Exit Price
 	ExitReason    string          // Reason for exit (TP1, TP2, SL, Time, etc.)
 
+	// Trailing Stop Loss
+	TrailingStopEnabled       bool            // Whether trailing stop is enabled
+	TrailingStopActivated     bool            // Whether trailing stop has been activated
+	TrailingStopActivationPct decimal.Decimal // Profit % required to activate trailing stop
+	TrailingStopDistancePct   decimal.Decimal // Distance % to maintain from peak price
+	HighestPriceSinceEntry    decimal.Decimal // Highest price reached (for LONG signals)
+	LowestPriceSinceEntry     decimal.Decimal // Lowest price reached (for SHORT signals)
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -95,8 +101,6 @@ func NewSignal(symbol string, signalType SignalType, strategyName string, market
 		ShortAccountRatio:  marketData.ShortAccountRatio,
 		LongPositionRatio:  marketData.LongPositionRatio,
 		ShortPositionRatio: marketData.ShortPositionRatio,
-		LongTraderCount:    marketData.LongTraderCount,
-		ShortTraderCount:   marketData.ShortTraderCount,
 		ConfirmationStart:  now,
 		ConfirmationEnd:    confirmationEnd,
 		IsConfirmed:        false,
@@ -107,8 +111,15 @@ func NewSignal(symbol string, signalType SignalType, strategyName string, market
 		TargetPrice1:       decimal.Zero,
 		TargetPrice2:       decimal.Zero,
 		ExitPrice:          decimal.Zero,
-		CreatedAt:          now,
-		UpdatedAt:          now,
+		// Initialize trailing stop fields (will be enabled by strategy if needed)
+		TrailingStopEnabled:       false,
+		TrailingStopActivated:     false,
+		TrailingStopActivationPct: decimal.Zero,
+		TrailingStopDistancePct:   decimal.Zero,
+		HighestPriceSinceEntry:    marketData.Price, // Initialize to entry price
+		LowestPriceSinceEntry:     marketData.Price, // Initialize to entry price
+		CreatedAt:                 now,
+		UpdatedAt:                 now,
 	}
 }
 

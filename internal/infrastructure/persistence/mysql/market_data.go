@@ -13,20 +13,20 @@ import (
 
 // MarketDataModel represents the market_data table
 type MarketDataModel struct {
-	ID                 int64           `gorm:"column:id;primaryKey;autoIncrement"`
-	Symbol             string          `gorm:"column:symbol;size:50;not null;index:idx_symbol_timestamp"`
-	Timestamp          time.Time       `gorm:"column:timestamp;not null;uniqueIndex:uk_symbol_timestamp;index:idx_symbol_timestamp"`
-	LongAccountRatio   decimal.Decimal `gorm:"column:long_account_ratio;type:decimal(10,4);not null"`
-	ShortAccountRatio  decimal.Decimal `gorm:"column:short_account_ratio;type:decimal(10,4);not null"`
-	LongPositionRatio  decimal.Decimal `gorm:"column:long_position_ratio;type:decimal(10,4);not null"`
-	ShortPositionRatio decimal.Decimal `gorm:"column:short_position_ratio;type:decimal(10,4);not null"`
-	LongTraderCount    int             `gorm:"column:long_trader_count;not null"`
-	ShortTraderCount   int             `gorm:"column:short_trader_count;not null"`
-	Price              decimal.Decimal `gorm:"column:price;type:decimal(20,8);not null"`
-	Volume24h          decimal.Decimal `gorm:"column:volume_24h;type:decimal(20,2)"`
-	OpenInterest       decimal.Decimal `gorm:"column:open_interest;type:decimal(20,8);default:0"`
-	FundingRate        decimal.Decimal `gorm:"column:funding_rate;type:decimal(10,8);default:0"`
-	CreatedAt          time.Time       `gorm:"column:created_at;autoCreateTime"`
+	ID                     int64           `gorm:"column:id;primaryKey;autoIncrement"`
+	Symbol                 string          `gorm:"column:symbol;size:50;not null;index:idx_symbol_timestamp"`
+	Timestamp              time.Time       `gorm:"column:timestamp;not null;uniqueIndex:uk_symbol_timestamp;index:idx_symbol_timestamp"`
+	LongAccountRatio       decimal.Decimal `gorm:"column:long_account_ratio;type:decimal(10,4);not null"`
+	ShortAccountRatio      decimal.Decimal `gorm:"column:short_account_ratio;type:decimal(10,4);not null"`
+	LongPositionRatio      decimal.Decimal `gorm:"column:long_position_ratio;type:decimal(10,4);not null"`
+	ShortPositionRatio     decimal.Decimal `gorm:"column:short_position_ratio;type:decimal(10,4);not null"`
+	PositionRatioAvailable bool            `gorm:"column:position_ratio_available;default:true"`
+	DataQualityScore       int             `gorm:"column:data_quality_score;type:tinyint;default:100"`
+	Price                  decimal.Decimal `gorm:"column:price;type:decimal(20,8);not null"`
+	Volume24h              decimal.Decimal `gorm:"column:volume_24h;type:decimal(20,2)"`
+	OpenInterest           decimal.Decimal `gorm:"column:open_interest;type:decimal(20,8);default:0"`
+	FundingRate            decimal.Decimal `gorm:"column:funding_rate;type:decimal(10,8);default:0"`
+	CreatedAt              time.Time       `gorm:"column:created_at;autoCreateTime"`
 }
 
 // TableName specifies the table name
@@ -37,20 +37,20 @@ func (MarketDataModel) TableName() string {
 // ToEntity converts model to domain entity
 func (m *MarketDataModel) ToEntity() *entity.MarketData {
 	return &entity.MarketData{
-		ID:                 m.ID,
-		Symbol:             m.Symbol,
-		Timestamp:          m.Timestamp,
-		LongAccountRatio:   m.LongAccountRatio,
-		ShortAccountRatio:  m.ShortAccountRatio,
-		LongPositionRatio:  m.LongPositionRatio,
-		ShortPositionRatio: m.ShortPositionRatio,
-		LongTraderCount:    m.LongTraderCount,
-		ShortTraderCount:   m.ShortTraderCount,
-		Price:              m.Price,
-		Volume24h:          m.Volume24h,
-		OpenInterest:       m.OpenInterest,
-		FundingRate:        m.FundingRate,
-		CreatedAt:          m.CreatedAt,
+		ID:                     m.ID,
+		Symbol:                 m.Symbol,
+		Timestamp:              m.Timestamp,
+		LongAccountRatio:       m.LongAccountRatio,
+		ShortAccountRatio:      m.ShortAccountRatio,
+		LongPositionRatio:      m.LongPositionRatio,
+		ShortPositionRatio:     m.ShortPositionRatio,
+		PositionRatioAvailable: m.PositionRatioAvailable,
+		DataQualityScore:       m.DataQualityScore,
+		Price:                  m.Price,
+		Volume24h:              m.Volume24h,
+		OpenInterest:           m.OpenInterest,
+		FundingRate:            m.FundingRate,
+		CreatedAt:              m.CreatedAt,
 	}
 }
 
@@ -63,8 +63,8 @@ func (m *MarketDataModel) FromEntity(entity *entity.MarketData) {
 	m.ShortAccountRatio = entity.ShortAccountRatio
 	m.LongPositionRatio = entity.LongPositionRatio
 	m.ShortPositionRatio = entity.ShortPositionRatio
-	m.LongTraderCount = entity.LongTraderCount
-	m.ShortTraderCount = entity.ShortTraderCount
+	m.PositionRatioAvailable = entity.PositionRatioAvailable
+	m.DataQualityScore = entity.DataQualityScore
 	m.Price = entity.Price
 	m.Volume24h = entity.Volume24h
 	m.OpenInterest = entity.OpenInterest

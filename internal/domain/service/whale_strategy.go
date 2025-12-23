@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"ContractAnalysis/internal/domain/entity"
+	"ContractAnalysis/internal/infrastructure/logger"
 
 	"github.com/shopspring/decimal"
 )
@@ -23,6 +24,7 @@ type WhaleStrategyConfig struct {
 type WhaleStrategy struct {
 	*BaseStrategy
 	config WhaleStrategyConfig
+	logger *logger.Logger
 }
 
 // NewWhaleStrategy creates a new whale strategy
@@ -30,6 +32,7 @@ func NewWhaleStrategy(config WhaleStrategyConfig) *WhaleStrategy {
 	return &WhaleStrategy{
 		BaseStrategy: NewBaseStrategy(config.BaseConfig),
 		config:       config,
+		logger:       logger.WithComponent("whale-strategy"),
 	}
 }
 
@@ -43,10 +46,24 @@ func (s *WhaleStrategy) Analyze(ctx context.Context, recentData []*entity.Market
 		return nil, nil
 	}
 
+	// Filter out data without valid position ratio
+	// Whale strategy requires position ratio data to work correctly
+	validData := make([]*entity.MarketData, 0)
+	for _, d := range recentData {
+		if d.PositionRatioAvailable {
+			validData = append(validData, d)
+		}
+	}
+
+	if len(validData) == 0 {
+		s.logger.Warn("No valid position ratio data available for whale strategy")
+		return nil, nil
+	}
+
 	var signals []*entity.Signal
 
-	// Analyze the most recent data point
-	latestData := recentData[0]
+	// Analyze the most recent data point with valid position ratio
+	latestData := validData[0]
 
 	// Check if we should generate a signal
 	shouldGenerate, reason, err := s.ShouldGenerateSignal(ctx, latestData)
@@ -88,6 +105,14 @@ func (s *WhaleStrategy) Analyze(ctx context.Context, recentData []*entity.Market
 		reason,
 		configSnapshot,
 	)
+
+	// Enable trailing stop if configured
+	trailingStopCfg := s.GetTrailingStopConfig()
+	if trailingStopCfg.Enabled {
+		signal.TrailingStopEnabled = true
+		signal.TrailingStopActivationPct = decimal.NewFromFloat(trailingStopCfg.ActivationPct)
+		signal.TrailingStopDistancePct = decimal.NewFromFloat(trailingStopCfg.TrailDistancePct)
+	}
 
 	signals = append(signals, signal)
 

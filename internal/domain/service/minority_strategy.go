@@ -89,6 +89,14 @@ func (s *MinorityStrategy) Analyze(ctx context.Context, recentData []*entity.Mar
 		configSnapshot,
 	)
 
+	// Enable trailing stop if configured
+	trailingStopCfg := s.GetTrailingStopConfig()
+	if trailingStopCfg.Enabled {
+		signal.TrailingStopEnabled = true
+		signal.TrailingStopActivationPct = decimal.NewFromFloat(trailingStopCfg.ActivationPct)
+		signal.TrailingStopDistancePct = decimal.NewFromFloat(trailingStopCfg.TrailDistancePct)
+	}
+
 	signals = append(signals, signal)
 
 	return signals, nil

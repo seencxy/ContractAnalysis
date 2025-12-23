@@ -72,11 +72,13 @@ func (c *Collector) CollectAll(ctx context.Context) error {
 	// Collect market data for each pair
 	collected := 0
 	failed := 0
+	failedSymbols := make([]string, 0)
 
 	for _, symbol := range pairs {
 		if err := c.collectForSymbol(ctx, symbol); err != nil {
 			c.logger.WithError(err).WithSymbol(symbol).Warn("Failed to collect data for symbol")
 			failed++
+			failedSymbols = append(failedSymbols, symbol)
 			continue
 		}
 		collected++
@@ -86,11 +88,35 @@ func (c *Collector) CollectAll(ctx context.Context) error {
 	}
 
 	duration := time.Since(startTime)
+	totalPairs := len(pairs)
+	successRate := float64(collected) / float64(totalPairs) * 100
+
 	c.logger.Info("Data collection completed",
+		zap.Int("total_pairs", totalPairs),
 		zap.Int("collected", collected),
 		zap.Int("failed", failed),
-		zap.String("duration", duration.String()),
+		zap.Float64("success_rate", successRate),
+		zap.Duration("duration", duration),
+		zap.Strings("failed_symbols", failedSymbols),
 	)
+
+	// Warning if success rate is low
+	if successRate < 95.0 {
+		c.logger.Warn("Low data collection success rate detected",
+			zap.Float64("success_rate", successRate),
+			zap.Int("failed_count", failed),
+		)
+	}
+
+	// Error if success rate is critically low
+	if successRate < 80.0 {
+		c.logger.Error("Critically low data collection success rate",
+			zap.Float64("success_rate", successRate),
+			zap.Int("total", totalPairs),
+			zap.Int("collected", collected),
+			zap.Int("failed", failed),
+		)
+	}
 
 	if failed > 0 && collected == 0 {
 		return fmt.Errorf("failed to collect data for all symbols")
@@ -212,18 +238,18 @@ func (c *Collector) filterPairs(pairs []string) []string {
 // convertToEntity converts Binance market data to domain entity
 func (c *Collector) convertToEntity(data *binance.MarketData) *entity.MarketData {
 	return &entity.MarketData{
-		Symbol:             data.Symbol,
-		Timestamp:          data.Timestamp,
-		LongAccountRatio:   decimal.NewFromFloat(data.LongAccountRatio),
-		ShortAccountRatio:  decimal.NewFromFloat(data.ShortAccountRatio),
-		LongPositionRatio:  decimal.NewFromFloat(data.LongPositionRatio),
-		ShortPositionRatio: decimal.NewFromFloat(data.ShortPositionRatio),
-		LongTraderCount:    data.LongTraderCount,
-		ShortTraderCount:   data.ShortTraderCount,
-		Price:              decimal.NewFromFloat(data.Price),
-		Volume24h:          decimal.NewFromFloat(data.Volume24h),
-		OpenInterest:       decimal.NewFromFloat(data.OpenInterest),
-		FundingRate:        decimal.NewFromFloat(data.FundingRate),
+		Symbol:                 data.Symbol,
+		Timestamp:              data.Timestamp,
+		LongAccountRatio:       decimal.NewFromFloat(data.LongAccountRatio),
+		ShortAccountRatio:      decimal.NewFromFloat(data.ShortAccountRatio),
+		LongPositionRatio:      decimal.NewFromFloat(data.LongPositionRatio),
+		ShortPositionRatio:     decimal.NewFromFloat(data.ShortPositionRatio),
+		PositionRatioAvailable: data.PositionRatioAvailable,
+		DataQualityScore:       data.DataQualityScore,
+		Price:                  decimal.NewFromFloat(data.Price),
+		Volume24h:              decimal.NewFromFloat(data.Volume24h),
+		OpenInterest:           decimal.NewFromFloat(data.OpenInterest),
+		FundingRate:            decimal.NewFromFloat(data.FundingRate),
 	}
 }
 

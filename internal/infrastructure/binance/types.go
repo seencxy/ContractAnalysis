@@ -100,9 +100,9 @@ type MarketData struct {
 	LongPositionRatio  float64
 	ShortPositionRatio float64
 
-	// Trader counts (if available)
-	LongTraderCount  int
-	ShortTraderCount int
+	// Data quality indicators
+	PositionRatioAvailable bool
+	DataQualityScore       int
 
 	// Price and volume
 	Price     float64

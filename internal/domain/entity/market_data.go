@@ -21,9 +21,9 @@ type MarketData struct {
 	LongPositionRatio  decimal.Decimal
 	ShortPositionRatio decimal.Decimal
 
-	// Trader counts
-	LongTraderCount  int
-	ShortTraderCount int
+	// Data quality indicators
+	PositionRatioAvailable bool // Whether position ratio data is available from API
+	DataQualityScore       int  // Data quality score 0-100
 
 	// Price and volume
 	Price        decimal.Decimal
@@ -80,6 +80,24 @@ func (m *MarketData) Validate() error {
 
 	if m.OpenInterest.LessThan(decimal.Zero) {
 		return fmt.Errorf("open interest must be non-negative")
+	}
+
+	// Validate timestamp freshness
+	now := time.Now()
+
+	// Don't allow future timestamps (with 5-minute clock skew tolerance)
+	if m.Timestamp.After(now.Add(5 * time.Minute)) {
+		return fmt.Errorf("future timestamp detected: %v (now: %v)", m.Timestamp, now)
+	}
+
+	// Don't allow stale data (older than 1 hour)
+	if m.Timestamp.Before(now.Add(-1 * time.Hour)) {
+		return fmt.Errorf("stale data detected: %v (now: %v)", m.Timestamp, now)
+	}
+
+	// Validate data quality score
+	if m.DataQualityScore < 0 || m.DataQualityScore > 100 {
+		return fmt.Errorf("data quality score must be between 0 and 100, got: %d", m.DataQualityScore)
 	}
 
 	return nil
@@ -149,17 +167,6 @@ func (m *MarketData) GetWhaleDirection() string {
 		return "LONG"
 	}
 	return "SHORT"
-}
-
-// TraderCountRatio returns the ratio of long traders to total traders
-func (m *MarketData) TraderCountRatio() decimal.Decimal {
-	total := m.LongTraderCount + m.ShortTraderCount
-	if total == 0 {
-		return decimal.Zero
-	}
-	return decimal.NewFromInt(int64(m.LongTraderCount)).
-		Div(decimal.NewFromInt(int64(total))).
-		Mul(decimal.NewFromInt(100))
 }
 
 // IsValid is a convenience method that calls Validate and returns a bool

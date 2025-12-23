@@ -26,8 +26,6 @@ type SignalModel struct {
 	ShortAccountRatio  decimal.Decimal `gorm:"column:short_account_ratio;type:decimal(10,4);not null"`
 	LongPositionRatio  decimal.Decimal `gorm:"column:long_position_ratio;type:decimal(10,4);not null"`
 	ShortPositionRatio decimal.Decimal `gorm:"column:short_position_ratio;type:decimal(10,4);not null"`
-	LongTraderCount    int             `gorm:"column:long_trader_count;not null"`
-	ShortTraderCount   int             `gorm:"column:short_trader_count;not null"`
 	ConfirmationStart  time.Time       `gorm:"column:confirmation_start;not null"`
 	ConfirmationEnd    time.Time       `gorm:"column:confirmation_end;not null"`
 	IsConfirmed        bool            `gorm:"column:is_confirmed;default:false"`
@@ -70,8 +68,6 @@ func (m *SignalModel) ToEntity() (*entity.Signal, error) {
 		ShortAccountRatio:  m.ShortAccountRatio,
 		LongPositionRatio:  m.LongPositionRatio,
 		ShortPositionRatio: m.ShortPositionRatio,
-		LongTraderCount:    m.LongTraderCount,
-		ShortTraderCount:   m.ShortTraderCount,
 		ConfirmationStart:  m.ConfirmationStart,
 		ConfirmationEnd:    m.ConfirmationEnd,
 		IsConfirmed:        m.IsConfirmed,
@@ -111,8 +107,6 @@ func (m *SignalModel) FromEntity(entity *entity.Signal) error {
 	m.ShortAccountRatio = entity.ShortAccountRatio
 	m.LongPositionRatio = entity.LongPositionRatio
 	m.ShortPositionRatio = entity.ShortPositionRatio
-	m.LongTraderCount = entity.LongTraderCount
-	m.ShortTraderCount = entity.ShortTraderCount
 	m.ConfirmationStart = entity.ConfirmationStart
 	m.ConfirmationEnd = entity.ConfirmationEnd
 	m.IsConfirmed = entity.IsConfirmed
@@ -371,8 +365,6 @@ func (r *SignalRepository) Update(ctx context.Context, signal *entity.Signal) er
 			"short_account_ratio":  model.ShortAccountRatio,
 			"long_position_ratio":  model.LongPositionRatio,
 			"short_position_ratio": model.ShortPositionRatio,
-			"long_trader_count":    model.LongTraderCount,
-			"short_trader_count":   model.ShortTraderCount,
 			"confirmation_start":   model.ConfirmationStart,
 			"confirmation_end":     model.ConfirmationEnd,
 			"is_confirmed":         model.IsConfirmed,

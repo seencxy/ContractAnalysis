@@ -79,6 +79,10 @@ strategies:
     tracking_hours: 24
     profit_target_pct: 5.0
     stop_loss_pct: 2.0
+    trailing_stop:
+      enabled: true
+      activation_pct: 2.0      # Activate trailing stop after 2% profit
+      trail_distance_pct: 1.0  # Maintain 1% distance from peak price
 
   whale:
     enabled: true
@@ -90,6 +94,10 @@ strategies:
     tracking_hours: 24
     profit_target_pct: 5.0
     stop_loss_pct: 2.0
+    trailing_stop:
+      enabled: true
+      activation_pct: 2.0      # Activate trailing stop after 2% profit
+      trail_distance_pct: 1.0  # Maintain 1% distance from peak price
 
   # Smart Money Strategy: Liquidity Grabs & SFP
   smart_money:
@@ -102,6 +110,10 @@ strategies:
     tracking_hours: 24
     profit_target_pct: 6.0            # Higher reward for SFP
     stop_loss_pct: 1.5                # Tight stop above wick
+    trailing_stop:
+      enabled: true
+      activation_pct: 3.0      # Activate trailing stop after 3% profit (higher for SFP)
+      trail_distance_pct: 1.5  # Maintain 1.5% distance from peak price
 
 
   global:

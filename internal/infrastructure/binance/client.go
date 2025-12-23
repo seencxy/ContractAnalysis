@@ -325,15 +325,18 @@ func (c *Client) GetMarketData(ctx context.Context, symbol string) (*MarketData,
 
 	// Fetch top trader position ratio (optional - some pairs may not have this data)
 	var longPositionPct, shortPositionPct float64
+	var positionRatioAvailable bool = true
+
 	positionRatio, err := c.GetTopLongShortPositionRatio(ctx, symbol, "5m")
 	if err != nil {
 		// Log warning but continue - position ratio is optional
-		c.logger.Debug("Position ratio not available for symbol, using 0",
+		c.logger.Warn("Position ratio not available for symbol",
 			zap.String("symbol", symbol),
 			zap.Error(err),
 		)
 		longPositionPct = 0
 		shortPositionPct = 0
+		positionRatioAvailable = false
 	} else {
 		// Convert position ratios from 0-1 to percentages 0-100
 		longPositionPct = positionRatio.LongAccount * 100
@@ -373,19 +376,25 @@ func (c *Client) GetMarketData(ctx context.Context, symbol string) (*MarketData,
 	longAccountPct := accountRatio.LongAccount * 100
 	shortAccountPct := accountRatio.ShortAccount * 100
 
+	// Calculate data quality score
+	dataQualityScore := 100
+	if !positionRatioAvailable {
+		dataQualityScore = 80 // Deduct 20 points for missing position data
+	}
+
 	marketData := &MarketData{
-		Symbol:             symbol,
-		Timestamp:          now,
-		LongAccountRatio:   longAccountPct,
-		ShortAccountRatio:  shortAccountPct,
-		LongPositionRatio:  longPositionPct,
-		ShortPositionRatio: shortPositionPct,
-		LongTraderCount:    0, // Not available from API
-		ShortTraderCount:   0, // Not available from API
-		Price:              ticker.LastPrice,
-		Volume24h:          ticker.QuoteVolume,
-		OpenInterest:       openInterest,
-		FundingRate:        fundingRate,
+		Symbol:                 symbol,
+		Timestamp:              now,
+		LongAccountRatio:       longAccountPct,
+		ShortAccountRatio:      shortAccountPct,
+		LongPositionRatio:      longPositionPct,
+		ShortPositionRatio:     shortPositionPct,
+		PositionRatioAvailable: positionRatioAvailable,
+		DataQualityScore:       dataQualityScore,
+		Price:                  ticker.LastPrice,
+		Volume24h:              ticker.QuoteVolume,
+		OpenInterest:           openInterest,
+		FundingRate:            fundingRate,
 	}
 
 	c.logger.Debug("Fetched market data successfully",

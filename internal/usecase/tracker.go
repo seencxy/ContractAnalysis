@@ -188,6 +188,9 @@ func (t *Tracker) trackSignal(ctx context.Context, signal *entity.Signal) error 
 		}
 	}
 
+	// --- Trailing Stop Loss Logic ---
+	t.updateTrailingStop(signal, currentPriceDecimal, priceChangePct)
+
 	shouldClose := false
 	closeReason := ""
 
@@ -282,6 +285,92 @@ func (t *Tracker) trackSignal(ctx context.Context, signal *entity.Signal) error 
 	}
 
 	return nil
+}
+
+// updateTrailingStop updates the trailing stop loss for a signal
+func (t *Tracker) updateTrailingStop(signal *entity.Signal, currentPrice, priceChangePct decimal.Decimal) {
+	// Skip if trailing stop is not enabled for this signal
+	if !signal.TrailingStopEnabled {
+		return
+	}
+
+	// Update peak/trough prices
+	if signal.Type == entity.SignalTypeLong {
+		// For LONG: track highest price
+		if currentPrice.GreaterThan(signal.HighestPriceSinceEntry) {
+			signal.HighestPriceSinceEntry = currentPrice
+		}
+	} else {
+		// For SHORT: track lowest price
+		if signal.LowestPriceSinceEntry.IsZero() || currentPrice.LessThan(signal.LowestPriceSinceEntry) {
+			signal.LowestPriceSinceEntry = currentPrice
+		}
+	}
+
+	// Check if trailing stop should be activated
+	if !signal.TrailingStopActivated {
+		// Check if profit threshold is reached
+		if priceChangePct.GreaterThanOrEqual(signal.TrailingStopActivationPct) {
+			signal.TrailingStopActivated = true
+
+			// Move stop loss to breakeven (entry price)
+			signal.StopLossPrice = signal.PriceAtSignal
+
+			t.logger.Info("Trailing stop activated",
+				zap.String("signal_id", signal.SignalID),
+				zap.String("symbol", signal.Symbol),
+				zap.String("profit_pct", priceChangePct.String()),
+				zap.String("stop_loss_moved_to", signal.StopLossPrice.String()),
+			)
+		}
+	}
+
+	// If already activated, continuously update the trailing stop
+	if signal.TrailingStopActivated {
+		newStopLoss := t.calculateTrailingStopLoss(signal, currentPrice)
+
+		// Stop loss should only move in favorable direction
+		if signal.Type == entity.SignalTypeLong {
+			// For LONG: stop loss can only move UP
+			if newStopLoss.GreaterThan(signal.StopLossPrice) {
+				oldStopLoss := signal.StopLossPrice
+				signal.StopLossPrice = newStopLoss
+
+				t.logger.Debug("Trailing stop updated (LONG)",
+					zap.String("signal_id", signal.SignalID),
+					zap.String("old_stop_loss", oldStopLoss.String()),
+					zap.String("new_stop_loss", newStopLoss.String()),
+					zap.String("highest_price", signal.HighestPriceSinceEntry.String()),
+				)
+			}
+		} else {
+			// For SHORT: stop loss can only move DOWN
+			if signal.StopLossPrice.IsZero() || newStopLoss.LessThan(signal.StopLossPrice) {
+				oldStopLoss := signal.StopLossPrice
+				signal.StopLossPrice = newStopLoss
+
+				t.logger.Debug("Trailing stop updated (SHORT)",
+					zap.String("signal_id", signal.SignalID),
+					zap.String("old_stop_loss", oldStopLoss.String()),
+					zap.String("new_stop_loss", newStopLoss.String()),
+					zap.String("lowest_price", signal.LowestPriceSinceEntry.String()),
+				)
+			}
+		}
+	}
+}
+
+// calculateTrailingStopLoss calculates the trailing stop loss price
+func (t *Tracker) calculateTrailingStopLoss(signal *entity.Signal, currentPrice decimal.Decimal) decimal.Decimal {
+	trailDistancePct := signal.TrailingStopDistancePct.Div(decimal.NewFromInt(100))
+
+	if signal.Type == entity.SignalTypeLong {
+		// For LONG: stop loss = highest_price * (1 - trail_distance_pct)
+		return signal.HighestPriceSinceEntry.Mul(decimal.NewFromInt(1).Sub(trailDistancePct))
+	} else {
+		// For SHORT: stop loss = lowest_price * (1 + trail_distance_pct)
+		return signal.LowestPriceSinceEntry.Mul(decimal.NewFromInt(1).Add(trailDistancePct))
+	}
 }
 
 // GetTrackingStatus returns the current tracking status

@@ -39,6 +39,13 @@ type Strategy interface {
 	GetStopLossPct() float64
 }
 
+// TrailingStopConfig represents trailing stop configuration
+type TrailingStopConfig struct {
+	Enabled          bool
+	ActivationPct    float64
+	TrailDistancePct float64
+}
+
 // StrategyConfig represents common strategy configuration
 type StrategyConfig struct {
 	Name              string
@@ -47,6 +54,7 @@ type StrategyConfig struct {
 	TrackingHours     int
 	ProfitTargetPct   float64
 	StopLossPct       float64
+	TrailingStop      TrailingStopConfig
 }
 
 // BaseStrategy provides common functionality for all strategies
@@ -94,4 +102,9 @@ func (s *BaseStrategy) GetProfitTargetPct() float64 {
 // GetStopLossPct returns the stop loss percentage
 func (s *BaseStrategy) GetStopLossPct() float64 {
 	return s.config.StopLossPct
+}
+
+// GetTrailingStopConfig returns the trailing stop configuration
+func (s *BaseStrategy) GetTrailingStopConfig() TrailingStopConfig {
+	return s.config.TrailingStop
 }

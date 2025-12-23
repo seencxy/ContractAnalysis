@@ -23,8 +23,6 @@ func ToSignalResponseWithOutcome(signal *entity.Signal, outcome *entity.SignalOu
 		ShortAccountRatio:  signal.ShortAccountRatio.String(),
 		LongPositionRatio:  signal.LongPositionRatio.String(),
 		ShortPositionRatio: signal.ShortPositionRatio.String(),
-		LongTraderCount:    signal.LongTraderCount,
-		ShortTraderCount:   signal.ShortTraderCount,
 		Status:             string(signal.Status),
 		IsConfirmed:        signal.IsConfirmed,
 		Reason:             signal.Reason,
